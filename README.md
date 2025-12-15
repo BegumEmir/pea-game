@@ -1,50 +1,220 @@
-# Welcome to your Expo app 👋
+# Pea • Virtual Pea Companion 🌱
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**Pea** is a small virtual plant companion built with React Native & Expo.  
+You take care of a cute pea by giving it water, sun and soil, letting it sleep, and playing mini–games together.  
+Over time, Pea's stats change and its mood reacts to how well you care for it.
 
-## Get started
+> This is a learning / hobby project to explore React Native, Expo and simple game mechanics.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## Features
 
-2. Start the app
+### 🪴 Pea as a Tamagotchi-style companion
 
-   ```bash
-   npx expo start
-   ```
+Pea has several stats:
 
-In the output, you'll find options to open the app in a
+- **Water**
+- **Sun**
+- **Soil**
+- **Fun**
+- **Energy**
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+Based on these stats, Pea's **mood** changes:
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- `happy`
+- `thirsty`
+- `needsSun`
+- `needsSoil`
+- `sleepy`
+- `bored`
+- `playing`
 
-## Get a fresh project
+The UI shows a different sprite for each mood (happy / thirsty / sleepy, etc.).
 
-When you're ready, run:
+### ⏱ Time-based stat changes
 
-```bash
-npm run reset-project
+- Every few seconds, **water / sun / soil / fun / energy slowly decrease**.
+- If the app was closed for a while (e.g. more than X minutes), when you come back:
+  - Some stats are reduced a bit,
+  - Pea may be **sleeping** because it waited too long,
+  - A custom message explains what happened.
+
+### 😴 Sleep system
+
+Pea can **sleep** for different reasons:
+
+- **Manual sleep**: user sends Pea to sleep.
+- **Tired from play**: mini-games consume energy; if it gets too low, Pea falls asleep.
+- **Long away**: if the user doesn’t open the app for a while, Pea is sleeping when they return.
+
+Sleep includes:
+
+- A small **countdown** for short naps,
+- Different messages depending on whether you wake Pea up early or let it rest fully.
+
+### 🎮 Mini–games
+
+There is a **Games** overlay with multiple mini–games that affect Pea's stats.
+
+#### 1. Tap Game 💚
+
+- You get **15 seconds** to tap as fast as you can.
+- Every tap:
+  - Increases **score**,
+  - Optionally triggers a small “bounce” animation on Pea.
+- When the timer ends:
+  - Pea gains **Fun**,
+  - Pea loses some **Energy**,
+  - If Energy gets too low, Pea may fall asleep.
+
+#### 2. Flappy Pea 🪽
+
+- A Flappy Bird–style mini–game:
+  - Tap to make Pea jump,
+  - Pass through gaps between pipes,
+  - Avoid hitting pipes or the ground.
+- The game tracks:
+  - **Current score** (how many pipes you pass),
+  - **Best score (high score)** stored in `AsyncStorage`.
+- Finishing the game:
+  - Increases **Fun**,
+  - Decreases **Energy**,
+  - Shows a special message if you set a **new high score**.
+
+#### 3. Reflex Game ⚡
+
+- A reaction/attention mini–game:
+  - Pea asks for something (e.g. one of a few options),
+  - You must tap the correct option **before the time runs out**.
+- Each round:
+  - Gets slightly harder / faster,
+  - Rewards Fun and costs a bit of Energy.
+
+### ✨ Small polish
+
+- Giving **water / sun / soil** shows **0.5 s emoji particles**:
+  - 💧 for water
+  - ☀️ for sun
+  - 🌱 for soil
+- Pea has a scale/bounce animation based on **Energy** and interactions.
+- Background color changes depending on mood (sleepy / bored / sunny etc.).
+
+### 🧪 Developer Panel (optional)
+
+There is a small **Dev panel** that can be toggled:
+
+- Shows **Water / Sun / Soil / Fun / Energy** numeric values.
+- Toggled via a “Show / Hide dev panel” text button.
+- Useful while tuning the game balance.
+
+---
+
+## Tech Stack
+
+This project is built with:
+
+- **React Native** (via Expo)
+- **Expo** (managed workflow)
+- **TypeScript**
+- **expo-router** for navigation (`app/(tabs)/index.tsx`)
+- **@react-native-async-storage/async-storage**
+  - Stores:
+    - Last visit timestamp (`PEA_LAST_VISIT`)
+    - Flappy Pea high score (`PEA_FLAPPY_HIGHSCORE`)
+
+---
+
+## Project Structure (simplified)
+
+```text
+pea-game/
+  app/
+    (tabs)/
+      index.tsx        # Main Pea screen (stats, mood, games overlay)
+  components/
+    TapGame.tsx        # 15-second tap mini-game
+    FlappyPeaGame.tsx  # Flappy Bird style mini-game
+    ReflexGame.tsx     # Reflex / reaction mini-game
+  assets/
+    pea/
+      pea_happy.png
+      pea_thirsty.png
+      pea_needs_sun.png
+      pea_needs_soil.png
+      pea_sleepy.png
+      pea_bored.png
+  package.json
+  README.md
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Getting Started
 
-## Learn more
+### 1. Requirements
 
-To learn more about developing your project with Expo, look at the following resources:
+- Node.js & npm (or Yarn)  
+- **Expo CLI** (optional, you can also use `npx expo` directly)  
+- A device/emulator:  
+  - Expo Go app on **Android** or **iOS**, or  
+  - Android Emulator / iOS Simulator  
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### 2. Install dependencies
 
-## Join the community
+```bash
+# clone the repo
+git clone https://github.com/<your-username>/pea-game.git
+cd pea-game
 
-Join our community of developers creating universal apps.
+# install dependencies
+npm install
+# or
+yarn
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### 3. Run the app
+
+```bash
+# using npx
+npx expo start
+
+# or if you have a script
+npm run start
+```
+
+Then:
+
+- Scan the QR code with **Expo Go** on your phone **(same Wi-Fi)**, or  
+- Press `a` to open Android emulator, `i` for iOS simulator (if available).
+
+---
+
+## How it works (high level)
+
+- All Pea stats (`water`, `sun`, `soil`, `fun`, `energy`) live in the main screen (`index.tsx`) as React state managed via `useState`.  
+- `useEffect` hooks:  
+  - Decrease stats over time,  
+  - Persist / load data from `AsyncStorage`,  
+  - Detect “long away” and trigger a special sleep state.  
+- Mini–games (`TapGame`, `FlappyPeaGame`, `ReflexGame`):  
+  - Are rendered inside a **full-screen overlay**.  
+  - Receive callbacks like `onFinished(score)` to send results back.  
+  - The main screen updates Fun/Energy and mood based on the result.  
+- Mood is derived from stats via a pure function:  
+  - Low water → `thirsty`  
+  - Low sun → `needsSun`  
+  - Low soil → `needsSoil`  
+  - Low energy → `sleepy`  
+  - Low fun → `bored`  
+  - Otherwise → `happy`  
+
+---
+
+## Roadmap / Ideas
+
+Some ideas for future improvements:
+
+- Add **Pea Coins** as a soft currency (earned via games, spent on cosmetics).  
+- Simple **shop** for pots, hats or backgrounds.  
+- More mini–games (memory, pattern taps, etc.).  
+- Daily login streak rewards.  
+- Cloud save / sync.
