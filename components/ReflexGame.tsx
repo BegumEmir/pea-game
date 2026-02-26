@@ -35,6 +35,9 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
   const [gameOver, setGameOver] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Refs mirror state so interval callbacks can read/write current values without stale closures
+  const timeLeftMsRef = useRef(INITIAL_TIME_MS);
+  const livesRef = useRef(MAX_LIVES);
 
   const hearts = '❤️'.repeat(lives) + '🤍'.repeat(MAX_LIVES - lives);
 
@@ -54,6 +57,7 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
 
     setRoundTimeMs(thisRoundTime);
     setTimeLeftMs(thisRoundTime);
+    timeLeftMsRef.current = thisRoundTime;
     setCurrentNeed(randomNeed());
     setIsActive(true);
     setStatusText('Doğru ihtiyacı hızlı seç! ⚡');
@@ -61,18 +65,18 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
     // Önceki timer'ı temizle
     if (timerRef.current) clearInterval(timerRef.current);
 
-    // Yeni timer
+    // Yeni timer — side effects run directly in the callback, not inside a state updater
     timerRef.current = setInterval(() => {
-      setTimeLeftMs(prev => {
-        const next = prev - 100;
-        if (next <= 0) {
-          clearInterval(timerRef.current as any);
-          timerRef.current = null;
-          handleTimeout();
-          return 0;
-        }
-        return next;
-      });
+      timeLeftMsRef.current -= 100;
+      if (timeLeftMsRef.current <= 0) {
+        timeLeftMsRef.current = 0;
+        setTimeLeftMs(0);
+        clearInterval(timerRef.current!);
+        timerRef.current = null;
+        handleTimeout();
+      } else {
+        setTimeLeftMs(timeLeftMsRef.current);
+      }
     }, 100);
 
     return () => {
@@ -89,18 +93,17 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
     setIsActive(false);
     setStatusText('Süre bitti! ⏰');
 
-    setLives(prevLives => {
-      const newLives = prevLives - 1;
-      if (newLives <= 0) {
-        setGameOver(true);
-      } else {
-        // biraz bekleyip yeni tura geç
-        setTimeout(() => {
-          setRound(r => r + 1);
-        }, 400);
-      }
-      return newLives;
-    });
+    const newLives = livesRef.current - 1;
+    livesRef.current = newLives;
+    setLives(newLives);
+    if (newLives <= 0) {
+      setGameOver(true);
+    } else {
+      // biraz bekleyip yeni tura geç
+      setTimeout(() => {
+        setRound(r => r + 1);
+      }, 400);
+    }
   };
 
   const handlePress = (need: Need) => {
@@ -125,17 +128,16 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
       // YANLIŞ
       setStatusText('Yanlış seçim! ❌');
 
-      setLives(prevLives => {
-        const newLives = prevLives - 1;
-        if (newLives <= 0) {
-          setGameOver(true);
-        } else {
-          setTimeout(() => {
-            setRound(r => r + 1);
-          }, 400);
-        }
-        return newLives;
-      });
+      const newLives = livesRef.current - 1;
+      livesRef.current = newLives;
+      setLives(newLives);
+      if (newLives <= 0) {
+        setGameOver(true);
+      } else {
+        setTimeout(() => {
+          setRound(r => r + 1);
+        }, 400);
+      }
     }
   };
 
