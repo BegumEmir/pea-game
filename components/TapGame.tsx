@@ -1,5 +1,5 @@
 // components/TapGame.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
 type TapGameProps = {
@@ -17,12 +17,14 @@ export default function TapGame({
 }: TapGameProps) {
   const [timeLeft, setTimeLeft] = useState(durationSeconds);
   const [score, setScore] = useState(0);
+  // Ref so onFinished always receives the true latest count, not a render-cycle snapshot
+  const scoreRef = useRef(0);
 
   // ⏱ Geri sayım – sadece burası timeLeft’i değiştiriyor
   useEffect(() => {
     if (timeLeft <= 0) {
       // süre bitince otomatik bitir
-      onFinished(score);
+      onFinished(scoreRef.current);
       onClose();
       return;
     }
@@ -37,13 +39,14 @@ export default function TapGame({
   const handleTap = () => {
     if (timeLeft <= 0) return; // süre bittiyse tıklama sayma
 
-    setScore(s => s + 1);      // SADECE skor artıyor
+    scoreRef.current += 1;     // ref güncelle (render beklemiyor)
+    setScore(s => s + 1);      // state güncelle (UI için)
     onTap?.();                 // Pea zıpla animasyonu
   };
 
   const handleExit = () => {
     // erken çıkarsa da skoru gönder, overlay’i kapat
-    onFinished(score);
+    onFinished(scoreRef.current);
     onClose();
   };
 
