@@ -74,6 +74,8 @@ export default function FlappyPeaGame({
   const [flappyStarted, setFlappyStarted] = useState(false);
   const [flappyGameOver, setFlappyGameOver] = useState(false);
   const [flappyScore, setFlappyScore] = useState(0);
+  // Ref so the game loop always reads the current score without needing it in the effect deps
+  const flappyScoreRef = useRef(0);
 
   const [flappyPipes, setFlappyPipes] = useState<FlappyPipe[]>(() => [
     {
@@ -117,7 +119,7 @@ export default function FlappyPeaGame({
       setFlappyPipes(prev => {
         if (!flappyStarted) return prev;
 
-        let newScore = flappyScore;
+        let newScore = flappyScoreRef.current;
         let gameOver = flappyGameOver;
 
         const updated = prev
@@ -160,7 +162,8 @@ export default function FlappyPeaGame({
           })
           .filter(pipe => pipe.x > -FLAPPY_PIPE_WIDTH - 30);
 
-        if (newScore !== flappyScore) {
+        if (newScore !== flappyScoreRef.current) {
+          flappyScoreRef.current = newScore;
           setFlappyScore(newScore);
         }
         if (gameOver && !flappyGameOver) {
@@ -172,7 +175,7 @@ export default function FlappyPeaGame({
     }, 16);
 
     return () => clearInterval(intervalId);
-  }, [flappyStarted, flappyGameOver, flappyScore]);
+  }, [flappyStarted, flappyGameOver]);
 
   // Boru spawn
   useEffect(() => {
@@ -204,6 +207,7 @@ export default function FlappyPeaGame({
   };
 
   const restartFlappy = () => {
+    flappyScoreRef.current = 0;
     setFlappyScore(0);
     setFlappyGameOver(false);
     setFlappyStarted(false);
@@ -221,7 +225,7 @@ export default function FlappyPeaGame({
   };
 
   const handleExit = () => {
-    onFinished(flappyScore);
+    onFinished(flappyScoreRef.current);
     onClose();
   };
 
