@@ -142,6 +142,8 @@ export default function HomeScreen() {
   const particleIdRef = useRef(0);
   // Guard: prevents the save effect from writing initial values over real saved data on startup
   const hasLoadedStats = useRef(false);
+  // Always points to the latest handleWake so the sleep-countdown effect never calls a stale version
+  const handleWakeRef = useRef<(early: boolean) => void>(null!);
 
   const [showDevPanel, setShowDevPanel] = useState(false);
 
@@ -268,8 +270,10 @@ export default function HomeScreen() {
     setCustomMessage(null);
     updateMood(water, sun, soil, fun, newEnergy);
   };
+  // Keep ref in sync on every render so the sleep-countdown effect always calls the latest version
+  handleWakeRef.current = handleWake;
 
-  
+
   // APP başladığında tüm kayıtlı verileri tek seferde yükle
   useEffect(() => {
     const initPea = async () => {
@@ -400,12 +404,12 @@ export default function HomeScreen() {
       const elapsed = now - sleepStartTime;
 
       if (sleepReason === 'manual' && elapsed >= SHORT_SLEEP_MS) {
-        handleWake(false);
+        handleWakeRef.current(false);
       } else if (
         sleepReason === 'tiredFromPlay' &&
         elapsed >= TIRED_SLEEP_MS
       ) {
-        handleWake(false);
+        handleWakeRef.current(false);
       }
     }, 1000);
 
