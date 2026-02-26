@@ -8,145 +8,66 @@ import {
   Image,
   Animated,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import TapGame from '../../components/TapGame';
 import FlappyPeaGame from '../../components/FlappyPeaGame';
 import ReflexGame from '../../components/ReflexGame';
+import { usePea, Mood, SHORT_SLEEP_MS, TIRED_SLEEP_MS } from '../../hooks/usePea';
 
+// ── Component-local types ─────────────────────────────────────────────────────
 
-// Pea'nin ruh halleri
-type Mood =
-  | 'happy'
-  | 'thirsty'
-  | 'needsSun'
-  | 'needsSoil'
-  | 'sleepy'
-  | 'playing'
-  | 'bored';
-
-type SleepReason = 'none' | 'tiredFromPlay' | 'manual' | 'longAway';
 type GameMode = 'menu' | 'tap' | 'flappy' | 'reflex' | null;
 type ParticleKind = 'water' | 'sun' | 'soil';
 
-
-function clamp(value: number) {
-  return Math.max(0, Math.min(100, value));
-}
-
-// Statlardan mood hesaplama
-function calculateMood(
-  water: number,
-  sun: number,
-  soil: number,
-  fun: number,
-  energy: number
-): Mood {
-  if (water < 30) return 'thirsty';
-  if (sun < 30) return 'needsSun';
-  if (soil < 30) return 'needsSoil';
-
-  if (energy < 15) return 'sleepy';
-  if (fun < 20) return 'bored';
-
-  return 'happy';
-}
+// ── UI helpers ────────────────────────────────────────────────────────────────
 
 function hintForMood(mood: Mood) {
   switch (mood) {
-    case 'thirsty':
-      return 'Pea susamış gibi görünüyor 💧';
-    case 'needsSun':
-      return 'Biraz güneşe ihtiyacı var ☀️';
-    case 'needsSoil':
-      return 'Toprağı güçlendirelim 🌱';
-    case 'sleepy':
-      return 'Çok yorulmuş, uykusu gelmiş 😴';
-    case 'playing':
-      return 'Şu an çok eğleniyor! 😆';
-    case 'bored':
-      return 'Biraz oyun oynamak istiyor gibi 🎮';
+    case 'thirsty':   return 'Pea susamış gibi görünüyor 💧';
+    case 'needsSun':  return 'Biraz güneşe ihtiyacı var ☀️';
+    case 'needsSoil': return 'Toprağı güçlendirelim 🌱';
+    case 'sleepy':    return 'Çok yorulmuş, uykusu gelmiş 😴';
+    case 'playing':   return 'Şu an çok eğleniyor! 😆';
+    case 'bored':     return 'Biraz oyun oynamak istiyor gibi 🎮';
     case 'happy':
-    default:
-      return 'Pea şu an mutlu görünüyor 🥰';
+    default:          return 'Pea şu an mutlu görünüyor 🥰';
   }
 }
 
 function backgroundForState(mood: Mood, sun: number) {
   if (mood === 'sleepy') return '#E5E7EB';
-  if (mood === 'bored') return '#E0E7FF';
+  if (mood === 'bored')  return '#E0E7FF';
   if (sun > 75) return '#FEF9C3';
   if (sun < 30) return '#E0F2FE';
   return '#EFF8FF';
 }
 
-// 🔹 Mood → sprite eşlemesi
-// BURADAKİ PATHLERİ KENDİ DOSYA İSİMLERİNE GÖRE GÜNCELLE
+// Mood → sprite mapping
 const peaSprites: Record<Mood, any> = {
-  happy: require('../../assets/pea/pea_happy.png'),
-  thirsty: require('../../assets/pea/pea_thirsty.png'),
-  needsSun: require('../../assets/pea/pea_needs_sun.png'),
+  happy:     require('../../assets/pea/pea_happy.png'),
+  thirsty:   require('../../assets/pea/pea_thirsty.png'),
+  needsSun:  require('../../assets/pea/pea_needs_sun.png'),
   needsSoil: require('../../assets/pea/pea_needs_soil.png'),
-  sleepy: require('../../assets/pea/pea_sleepy.png'),
-  playing: require('../../assets/pea/pea_happy.png'), // şimdilik happy ile aynı
-  bored: require('../../assets/pea/pea_bored.png'),
+  sleepy:    require('../../assets/pea/pea_sleepy.png'),
+  playing:   require('../../assets/pea/pea_happy.png'),
+  bored:     require('../../assets/pea/pea_bored.png'),
 };
 
-// Uyku süreleri
-const SHORT_SLEEP_MS = 5000;
-const TIRED_SLEEP_MS = 20000;
-const LONG_AWAY_MINUTES = 30;
-
-const INITIAL_WATER  = 60;
-const INITIAL_SUN    = 60;
-const INITIAL_SOIL   = 60;
-const INITIAL_FUN    = 50;
-const INITIAL_ENERGY = 80;
+// ── HomeScreen ────────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
-  const [water, setWater] = useState(INITIAL_WATER);
-  const [sun, setSun] = useState(INITIAL_SUN);
-  const [soil, setSoil] = useState(INITIAL_SOIL);
-  const [fun, setFun] = useState(INITIAL_FUN);
-  const [flappyHighScore, setFlappyHighScore] = useState(0);
-  const [energy, setEnergy] = useState(INITIAL_ENERGY);
-  const [coins, setCoins] = useState(0);
-
-  const [mood, setMood] = useState<Mood>(() =>
-    calculateMood(
-      INITIAL_WATER,
-      INITIAL_SUN,
-      INITIAL_SOIL,
-      INITIAL_FUN,
-      INITIAL_ENERGY
-    )
-  );
-
-  const [isSleeping, setIsSleeping] = useState(false);
-  const [sleepReason, setSleepReason] = useState<SleepReason>('none');
-  const [sleepStartTime, setSleepStartTime] = useState<number | null>(null);
-  const [wasLongAway, setWasLongAway] = useState(false);
-
-  const [customMessage, setCustomMessage] = useState<string | null>(null);
-  const [sleepNow, setSleepNow] = useState(Date.now());
-
-  // Oyun durumu
+  // Game overlay state — owned here because it controls the UI layer
   const [isGameOpen, setIsGameOpen] = useState(false);
-  const [gameMode, setGameMode] = useState<GameMode>(null);
+  const [gameMode, setGameMode]     = useState<GameMode>(null);
 
+  // All Pea logic (stats, mood, sleep, persistence, game results)
+  const pea = usePea(isGameOpen);
 
-  // Pea için ölçek animasyonu
-  const peaScaleAnim = useRef(new Animated.Value(1)).current;
-  const baseScale = 0.9 + (energy / 100) * 0.25;
-
+  // Visual state
+  const peaScaleAnim  = useRef(new Animated.Value(1)).current;
+  const baseScale     = 0.9 + (pea.energy / 100) * 0.25;
   const [particles, setParticles] = useState<Array<{ id: number; kind: ParticleKind }>>([]);
   const particleIdRef = useRef(0);
-  // Guard: prevents the save effect from writing initial values over real saved data on startup
-  const hasLoadedStats = useRef(false);
-  // Always points to the latest handleWake so the sleep-countdown effect never calls a stale version
-  const handleWakeRef = useRef<(early: boolean) => void>(null!);
-
   const [showDevPanel, setShowDevPanel] = useState(false);
-
 
   useEffect(() => {
     peaScaleAnim.setValue(baseScale);
@@ -155,501 +76,63 @@ export default function HomeScreen() {
   const bouncePea = () => {
     const upScale = baseScale * 1.08;
     Animated.sequence([
-      Animated.timing(peaScaleAnim, {
-        toValue: upScale,
-        duration: 80,
-        useNativeDriver: true,
-      }),
-      Animated.spring(peaScaleAnim, {
-        toValue: baseScale,
-        friction: 3,
-        useNativeDriver: true,
-      }),
+      Animated.timing(peaScaleAnim, { toValue: upScale, duration: 80, useNativeDriver: true }),
+      Animated.spring(peaScaleAnim, { toValue: baseScale, friction: 3, useNativeDriver: true }),
     ]).start();
   };
 
-  const updateMood = (
-    newWater: number,
-    newSun: number,
-    newSoil: number,
-    newFun: number,
-    newEnergy: number
-  ) => {
-    const nextMood = calculateMood(
-      newWater,
-      newSun,
-      newSoil,
-      newFun,
-      newEnergy
-    );
-    setMood(nextMood);
-    setCustomMessage(null);
-  };
-
   const spawnParticle = (kind: ParticleKind) => {
-  const id = particleIdRef.current++;
-  setParticles(prev => [...prev, { id, kind }]);
-
-  // 0.5 sn sonra state’ten sil
-  setTimeout(() => {
-    setParticles(prev => prev.filter(p => p.id !== id));
-  }, 500);
-};
-
-
-  const handleWake = (early: boolean) => {
-    if (!isSleeping || !sleepStartTime) return;
-
-    const now = Date.now();
-    const elapsed = now - sleepStartTime;
-
-    if (sleepReason === 'tiredFromPlay') {
-      if (early && elapsed < TIRED_SLEEP_MS) {
-        setCustomMessage(
-          'Daha tam dinlenemedim, biraz daha uyumam lazım… 😴'
-        );
-        setMood('sleepy');
-        return;
-      }
-
-      const newEnergy = clamp(energy + 30);
-      setEnergy(newEnergy);
-      setIsSleeping(false);
-      setSleepReason('none');
-      setSleepStartTime(null);
-      setCustomMessage(null);
-      updateMood(water, sun, soil, fun, newEnergy);
-      return;
-    }
-
-    if (sleepReason === 'manual') {
-      let newEnergy: number;
-
-      if (early && elapsed < SHORT_SLEEP_MS) {
-        newEnergy = clamp(energy + 10);
-        setCustomMessage('Daha yeni uyumuştum ama neyse… 😌');
-      } else {
-        newEnergy = clamp(energy + 20);
-        setCustomMessage('Kendini biraz daha iyi hissediyor gibi 😊');
-      }
-
-      const moodAfter = calculateMood(water, sun, soil, fun, newEnergy);
-
-      setEnergy(newEnergy);
-      setIsSleeping(false);
-      setSleepReason('none');
-      setSleepStartTime(null);
-      setMood(moodAfter);
-
-      return;
-    }
-
-    if (sleepReason === 'longAway') {
-      const newEnergy = clamp(energy + 30);
-      const newFun = 10;
-
-      setEnergy(newEnergy);
-      setFun(newFun);
-      setIsSleeping(false);
-      setSleepReason('none');
-      setSleepStartTime(null);
-      setWasLongAway(false);
-
-      setMood('bored');
-      setCustomMessage(
-        'Sen yokken çok bekledim… Biraz canım sıkıldı. Oyun oynasak mı? 🎮'
-      );
-      return;
-    }
-
-    const newEnergy = clamp(energy + 15);
-    setEnergy(newEnergy);
-    setIsSleeping(false);
-    setSleepReason('none');
-    setSleepStartTime(null);
-    setCustomMessage(null);
-    updateMood(water, sun, soil, fun, newEnergy);
-  };
-  // Keep ref in sync on every render so the sleep-countdown effect always calls the latest version
-  handleWakeRef.current = handleWake;
-
-
-  // APP başladığında tüm kayıtlı verileri tek seferde yükle
-  useEffect(() => {
-    const initPea = async () => {
-      try {
-        const entries = await AsyncStorage.multiGet([
-          'PEA_WATER', 'PEA_SUN', 'PEA_SOIL', 'PEA_FUN', 'PEA_ENERGY',
-          'PEA_LAST_VISIT', 'PEA_COINS', 'PEA_FLAPPY_HIGHSCORE',
-        ]);
-        const stored = Object.fromEntries(entries.map(([k, v]) => [k, v]));
-
-        // Kayıtlı stat yoksa başlangıç değerlerini kullan
-        let w  = stored['PEA_WATER']  != null ? Number(stored['PEA_WATER'])  : INITIAL_WATER;
-        let s  = stored['PEA_SUN']    != null ? Number(stored['PEA_SUN'])    : INITIAL_SUN;
-        let so = stored['PEA_SOIL']   != null ? Number(stored['PEA_SOIL'])   : INITIAL_SOIL;
-        let f  = stored['PEA_FUN']    != null ? Number(stored['PEA_FUN'])    : INITIAL_FUN;
-        let e  = stored['PEA_ENERGY'] != null ? Number(stored['PEA_ENERGY']) : INITIAL_ENERGY;
-
-        // Uzun süre geri gelmedik mi? Penaltıyı yüklenen statlara uygula
-        const now = Date.now();
-        let longAway = false;
-        if (stored['PEA_LAST_VISIT']) {
-          const diffMinutes = (now - parseInt(stored['PEA_LAST_VISIT'], 10)) / 60000;
-          if (diffMinutes > LONG_AWAY_MINUTES) {
-            longAway = true;
-            e  = 15;
-            w  = clamp(w  - 10);
-            s  = clamp(s  - 10);
-            so = clamp(so - 5);
-          }
-        }
-
-        setWater(w);
-        setSun(s);
-        setSoil(so);
-        setFun(f);
-        setEnergy(e);
-
-        if (longAway) {
-          setIsSleeping(true);
-          setSleepReason('longAway');
-          setSleepStartTime(now);
-          setSleepNow(now);
-          setWasLongAway(true);
-          setMood('sleepy');
-        } else {
-          setMood(calculateMood(w, s, so, f, e));
-        }
-
-        if (stored['PEA_COINS'] != null)         setCoins(Number(stored['PEA_COINS']));
-        if (stored['PEA_FLAPPY_HIGHSCORE'])       setFlappyHighScore(Number(stored['PEA_FLAPPY_HIGHSCORE']));
-
-        await AsyncStorage.setItem('PEA_LAST_VISIT', String(now));
-      } catch (err) {
-        console.warn('Pea başlatılamadı:', err);
-      } finally {
-        hasLoadedStats.current = true;
-      }
-    };
-
-    initPea();
-  }, []);
-
-
-  // Zamanla statların azalması
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      if (isSleeping || isGameOpen) return;
-
-      const newWater = clamp(water - 2);
-      const newSun = clamp(sun - 1);
-      const newSoil = clamp(soil - 0.5);
-      const newFun = clamp(fun - 0.3);
-      const newEnergy = clamp(energy - 0.2);
-
-      setWater(newWater);
-      setSun(newSun);
-      setSoil(newSoil);
-      setFun(newFun);
-      setEnergy(newEnergy);
-
-      updateMood(newWater, newSun, newSoil, newFun, newEnergy);
-    }, 5000);
-
-    return () => clearInterval(intervalId);
-  }, [water, sun, soil, fun, energy, isSleeping, isGameOpen]);
-
-  // Statlar değişince kaydet — ilk yükleme bitene kadar çalışmaz
-  useEffect(() => {
-    if (!hasLoadedStats.current) return;
-    const saveStats = async () => {
-      try {
-        await AsyncStorage.multiSet([
-          ['PEA_LAST_VISIT', String(Date.now())],
-          ['PEA_WATER',      String(water)],
-          ['PEA_SUN',        String(sun)],
-          ['PEA_SOIL',       String(soil)],
-          ['PEA_FUN',        String(fun)],
-          ['PEA_ENERGY',     String(energy)],
-        ]);
-      } catch (e) {
-        console.warn('Pea durumu kaydedilemedi:', e);
-      }
-    };
-    saveStats();
-  }, [water, sun, soil, fun, energy]);
-
-    useEffect(() => {
-      const saveCoins = async () => {
-        try {
-          await AsyncStorage.setItem('PEA_COINS', String(coins));
-        } catch (e) {
-          console.warn('Pea coins kaydedilemedi:', e);
-        }
-      };
-
-      saveCoins();
-    }, [coins]);
-
-
-  // Uyku sırasında sayaç + otomatik uyanma
-  useEffect(() => {
-    if (!isSleeping || !sleepStartTime) return;
-
-    const intervalId = setInterval(() => {
-      const now = Date.now();
-      setSleepNow(now);
-
-      const elapsed = now - sleepStartTime;
-
-      if (sleepReason === 'manual' && elapsed >= SHORT_SLEEP_MS) {
-        handleWakeRef.current(false);
-      } else if (
-        sleepReason === 'tiredFromPlay' &&
-        elapsed >= TIRED_SLEEP_MS
-      ) {
-        handleWakeRef.current(false);
-      }
-    }, 1000);
-
-    return () => clearInterval(intervalId);
-  }, [isSleeping, sleepReason, sleepStartTime]);
-
-  const handleTapFinished = (score: number) => {
-    // TapGame bitince overlay zaten onClose ile kapanıyor,
-    // burada sadece statları güncelliyoruz.
-
-    if (score === 0) {
-      setCustomMessage('Hiç tıklamadın, bir dahaki sefere deneriz 😌');
-      return;
-    }
-
-    // FUN & ENERGY
-    const finalFun = clamp(fun + score * 1.5);
-    const finalEnergy = clamp(energy - (4 + score * 0.2));
-
-    setFun(finalFun);
-    setEnergy(finalEnergy);
-
-    // COINS: her 3 tık ≈ 1 coin (min 1)
-    const coinsEarned = Math.max(1, Math.floor(score / 3));
-    setCoins(c => c + coinsEarned);
-
-    // Çok yorulduysa uykuya geç
-    if (finalEnergy < 8) {
-      const now = Date.now();
-      setIsSleeping(true);
-      setSleepReason('tiredFromPlay');
-      setSleepStartTime(now);
-      setSleepNow(now);
-      setMood('sleepy');
-      setCustomMessage(
-        `Oyun oynarken çok yoruldu ve uyuyakaldı 😴 (+${coinsEarned} 🍃)`
-      );
-      return;
-    }
-
-    const moodAfter = calculateMood(water, sun, soil, finalFun, finalEnergy);
-    setMood(moodAfter);
-    setCustomMessage(
-      `Oyun bitti! ${score} puan topladın 🎮 (+${coinsEarned} 🍃)`
-    );
+    const id = particleIdRef.current++;
+    setParticles(prev => [...prev, { id, kind }]);
+    setTimeout(() => setParticles(prev => prev.filter(p => p.id !== id)), 500);
   };
 
+  // ── Action wrappers — add visual effects on top of hook logic ───────────────
 
+  const giveWater = () => { spawnParticle('water'); pea.giveWater(); bouncePea(); };
+  const giveSun   = () => { spawnParticle('sun');   pea.giveSun();   bouncePea(); };
+  const giveSoil  = () => { spawnParticle('soil');  pea.giveSoil();  bouncePea(); };
 
-
-  const handleReflexFinished = (score: number) => {
-    if (score <= 0) {
-      setCustomMessage('Refleks oyununda ısınma turu gibi geçti 😌');
-      return;
-    }
-
-    // FUN & ENERGY
-    const funGain = score * 1.2;
-    const energyLoss = score * 0.6;
-
-    const newFun = clamp(fun + funGain);
-    const newEnergy = clamp(energy - energyLoss);
-
-    setFun(newFun);
-    setEnergy(newEnergy);
-
-    // COINS: her doğru cevap ≈ 1 coin
-    const coinsEarned = score;
-    setCoins(c => c + coinsEarned);
-
-    const moodAfter = calculateMood(water, sun, soil, newFun, newEnergy);
-    setMood(moodAfter);
-    setCustomMessage(
-      `Refleks oyununda ${score} doğru yaptın ⚡ (+${coinsEarned} 🍃)`
-    );
-  };
-
-
-
-
-
-    const handleFlappyFinished = async (score: number) => {
-      setIsGameOpen(false);
-      setGameMode(null);
-
-      if (score <= 0) {
-        setCustomMessage('Flappy Pea denemesi bitti 🪽');
-        return;
-      }
-
-      // High score kontrolü
-      let newHigh = flappyHighScore;
-      let isNewHigh = false;
-      if (score > flappyHighScore) {
-        newHigh = score;
-        isNewHigh = true;
-        setFlappyHighScore(score);
-        try {
-          await AsyncStorage.setItem('PEA_FLAPPY_HIGHSCORE', String(score));
-        } catch (e) {
-          console.warn('Flappy high score kaydedilemedi:', e);
-        }
-      }
-
-      // FUN & ENERGY
-      const funGain = score * 2;
-      const energyLoss = Math.min(15, score * 1.2);
-
-      const newFun = clamp(fun + funGain);
-      const newEnergy = clamp(energy - energyLoss);
-
-      setFun(newFun);
-      setEnergy(newEnergy);
-
-      // COINS: her geçen boru = 1 coin
-      const coinsEarned = score;
-      setCoins(c => c + coinsEarned);
-
-      const moodAfter = calculateMood(water, sun, soil, newFun, newEnergy);
-      setMood(moodAfter);
-
-      if (isNewHigh) {
-        setCustomMessage(
-          `Yeni rekor! ${score} boru geçtin 🪽 (Eski: ${flappyHighScore})  +${coinsEarned} 🍃`
-        );
-      } else {
-        setCustomMessage(
-          `Flappy Pea’de ${score} boru geçtin! 🪽 (+${coinsEarned} 🍃)`
-        );
-      }
-    };
-
-
-
-  // BUTONLAR
-  const giveWater = () => {
-    if (isSleeping) return;
-    spawnParticle('water');
-    const newWater = clamp(water + 25);
-    const newFun = clamp(fun + 3);
-    const newEnergy = energy;
-    setWater(newWater);
-    setFun(newFun);
-    updateMood(newWater, sun, soil, newFun, newEnergy);
-    bouncePea();
-  };
-
-  const giveSun = () => {
-    if (isSleeping) return;
-    spawnParticle('sun');
-    const newSun = clamp(sun + 25);
-    const newFun = clamp(fun + 3);
-    const newEnergy = energy;
-    setSun(newSun);
-    setFun(newFun);
-    updateMood(water, newSun, soil, newFun, newEnergy);
-    bouncePea();
-  };
-
-  const giveSoil = () => {
-    if (isSleeping) return;
-    spawnParticle('soil');
-    const newSoil = clamp(soil + 25);
-    const newFun = clamp(fun + 3);
-    const newEnergy = energy;
-    setSoil(newSoil);
-    setFun(newFun);
-    updateMood(water, sun, newSoil, newFun, newEnergy);
-    bouncePea();
-  };
-
-  // Oyunlar menüsünü aç
   const play = () => {
-    if (isSleeping) {
-      if (sleepReason === 'longAway') {
-        setCustomMessage('Şu an uyuyor… Önce onu uyandırman gerekiyor 😴');
-      } else if (sleepReason === 'tiredFromPlay') {
-        setCustomMessage(
-          'Oyun oynarken çok yoruldu, biraz dinlensin sonra tekrar oynarsınız 😴'
-        );
-      } else {
-        setCustomMessage('Şu an uyuyor, oyun oynamak istemiyor 😴');
-      }
-      return;
-    }
-
+    if (!pea.tryPlay()) return;
     setGameMode('menu');
     setIsGameOpen(true);
-    setCustomMessage('Pea hangi oyunu oynayalım diye bakıyor 🎮');
+    pea.startPlayingMood('Pea hangi oyunu oynayalım diye bakıyor 🎮');
     bouncePea();
   };
 
-  const toggleSleep = () => {
-    if (isSleeping && mood === 'sleepy') {
-      handleWake(true);
-      bouncePea();
-      return;
-    }
+  const toggleSleep = () => { pea.toggleSleep(); bouncePea(); };
 
-    if (energy >= 50) {
-      setMood('bored');
-      setCustomMessage('Daha uykum yok, şimdi uyumak istemiyorum 😤');
-      return;
-    }
-
-    const now = Date.now();
-    setIsSleeping(true);
-    setSleepReason('manual');
-    setSleepStartTime(now);
-    setSleepNow(now);
-    setMood('sleepy');
-    setCustomMessage('Çok yorulmuş, biraz kestiriyor 😴');
-    bouncePea();
+  // Flappy wrapper: close overlay first, then let hook handle stats
+  const handleFlappyFinished = async (score: number) => {
+    setIsGameOpen(false);
+    setGameMode(null);
+    await pea.onFlappyGameResult(score);
   };
 
-  const backgroundColor = backgroundForState(mood, sun);
+  // ── Computed display values ─────────────────────────────────────────────────
 
-  let hint = customMessage ?? hintForMood(mood);
-  if (!customMessage && isSleeping && sleepReason === 'longAway') {
+  const backgroundColor = backgroundForState(pea.mood, pea.sun);
+
+  let hint = pea.customMessage ?? hintForMood(pea.mood);
+  if (!pea.customMessage && pea.isSleeping && pea.sleepReason === 'longAway') {
     hint = 'Pea seni beklerken uyuya kalmış gibi görünüyor 😴';
   }
 
-  // Uyku sayaç metni
   let sleepCountdownText: string | null = null;
-  if (isSleeping && sleepStartTime) {
+  if (pea.isSleeping && pea.sleepStartTime) {
     let totalMs = 0;
-    if (sleepReason === 'manual') totalMs = SHORT_SLEEP_MS;
-    if (sleepReason === 'tiredFromPlay') totalMs = TIRED_SLEEP_MS;
-
+    if (pea.sleepReason === 'manual')        totalMs = SHORT_SLEEP_MS;
+    if (pea.sleepReason === 'tiredFromPlay') totalMs = TIRED_SLEEP_MS;
     if (totalMs > 0) {
-      const elapsed = sleepNow - sleepStartTime;
+      const elapsed   = pea.sleepNow - pea.sleepStartTime;
       const remaining = Math.max(0, totalMs - elapsed);
-      const secs = Math.ceil(remaining / 1000);
-      if (secs > 0) {
-        sleepCountdownText = `Dinleniyor: ${secs} sn`;
-      }
+      const secs      = Math.ceil(remaining / 1000);
+      if (secs > 0) sleepCountdownText = `Dinleniyor: ${secs} sn`;
     }
   }
 
-  
+  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
@@ -658,22 +141,16 @@ export default function HomeScreen() {
         {/* Üst bar: başlık + coin */}
         <View style={styles.topBar}>
           <Text style={styles.title}>Pea • Sanal Bezelye</Text>
-
           <View style={styles.coinBadge}>
             <Text style={styles.coinEmoji}>🍃</Text>
-            <Text style={styles.coinText}>{coins}</Text>
+            <Text style={styles.coinText}>{pea.coins}</Text>
           </View>
         </View>
 
         <View style={styles.peaWrapper}>
-          <Animated.View
-            style={[
-              styles.pea,
-              { transform: [{ scale: peaScaleAnim }] },
-            ]}
-          >
+          <Animated.View style={[styles.pea, { transform: [{ scale: peaScaleAnim }] }]}>
             <Image
-              source={peaSprites[mood]}
+              source={peaSprites[pea.mood]}
               style={styles.peaImage}
               resizeMode="contain"
             />
@@ -691,7 +168,6 @@ export default function HomeScreen() {
           </Text>
         </TouchableOpacity>
 
-
         {sleepCountdownText && (
           <Text style={styles.sleepCountdown}>{sleepCountdownText}</Text>
         )}
@@ -703,36 +179,33 @@ export default function HomeScreen() {
           ))}
         </View>
 
-
         {/* Dev stat paneli */}
         {showDevPanel && (
           <View style={styles.debugPanel}>
             <Text style={styles.debugTitle}>Pea Durumu (Dev)</Text>
             <Text style={styles.debugLine}>
-              Su: {water.toFixed(0)} | Güneş: {sun.toFixed(0)} | Toprak:{' '}
-              {soil.toFixed(0)}
+              Su: {pea.water.toFixed(0)} | Güneş: {pea.sun.toFixed(0)} | Toprak: {pea.soil.toFixed(0)}
             </Text>
             <Text style={styles.debugLine}>
-              Eğlence: {fun.toFixed(0)} | Enerji: {energy.toFixed(0)}
+              Eğlence: {pea.fun.toFixed(0)} | Enerji: {pea.energy.toFixed(0)}
             </Text>
           </View>
         )}
 
-
         {/* Ana butonlar */}
         <View style={styles.buttonsRow}>
           <ActionButton label="Su Ver 💧" onPress={giveWater} />
-          <ActionButton label="Güneş ☀️" onPress={giveSun} />
+          <ActionButton label="Güneş ☀️"  onPress={giveSun} />
         </View>
 
         <View style={styles.buttonsRow}>
-          <ActionButton label="Toprak 🌱" onPress={giveSoil} />
+          <ActionButton label="Toprak 🌱"    onPress={giveSoil} />
           <ActionButton label="Oyun Oyna 🎮" onPress={play} />
         </View>
 
         <View style={styles.buttonsRow}>
           <ActionButton
-            label={mood === 'sleepy' ? 'Uyandır 😴➡️😊' : 'Uyut 😴'}
+            label={pea.mood === 'sleepy' ? 'Uyandır 😴➡️😊' : 'Uyut 😴'}
             onPress={toggleSleep}
           />
         </View>
@@ -742,38 +215,34 @@ export default function HomeScreen() {
       {isGameOpen && (
         <View style={styles.gameOverlay}>
           <View
-          style={[
-            styles.gameCard,
-            gameMode === 'flappy' && styles.gameCardFlappy, // ⬅️ flappy’de full-screen kart
-          ]}
-        >
+            style={[
+              styles.gameCard,
+              gameMode === 'flappy' && styles.gameCardFlappy,
+            ]}
+          >
             {gameMode === 'menu' && (
               <>
-                {/* Başlık + mini açıklama */}
                 <View style={styles.gameMenuHeader}>
                   <Text style={styles.gameTitle}>Oyunlar 🎮</Text>
                   <Text style={styles.gameSubtitle}>
                     Pea şu an oyun seçiyor. Hangisini oynayalım?
                   </Text>
 
-                  {flappyHighScore > 0 && (
+                  {pea.flappyHighScore > 0 && (
                     <View style={styles.gameMenuStats}>
-                      <Text style={styles.gameMenuStatsLabel}>
-                        Flappy Pea rekorun
-                      </Text>
+                      <Text style={styles.gameMenuStatsLabel}>Flappy Pea rekorun</Text>
                       <Text style={styles.gameMenuStatsValue}>
-                        {flappyHighScore} 🪽
+                        {pea.flappyHighScore} 🪽
                       </Text>
                     </View>
                   )}
                 </View>
 
-                {/* 1️⃣ Tıklama Oyunu kartı */}
+                {/* Tıklama Oyunu */}
                 <TouchableOpacity
                   style={styles.gameOptionCard}
                   onPress={() => {
-                    setMood('playing');
-                    setCustomMessage('Pea tıklama oyunu oynuyor 🎮');
+                    pea.startPlayingMood('Pea tıklama oyunu oynuyor 🎮');
                     setGameMode('tap');
                   }}
                 >
@@ -782,8 +251,7 @@ export default function HomeScreen() {
                     <Text style={styles.gameOptionTag}>Hızlı refleks</Text>
                   </View>
                   <Text style={styles.gameOptionDesc}>
-                    15 saniye içinde olabildiğince hızlı dokun, Pea’nin
-                    eğlencesi patlasın!
+                    15 saniye içinde olabildiğince hızlı dokun, Pea'nin eğlencesi patlasın!
                   </Text>
                   <View style={styles.gameOptionStatsRow}>
                     <Text style={styles.gameOptionStatPositive}>Eğlence: ++</Text>
@@ -791,12 +259,11 @@ export default function HomeScreen() {
                   </View>
                 </TouchableOpacity>
 
-                {/* Refleks Oyunu kartı */}
+                {/* Refleks Oyunu */}
                 <TouchableOpacity
                   style={styles.gameOptionCard}
                   onPress={() => {
-                    setMood('playing');
-                    setCustomMessage('Pea refleks oyununa hazırlanıyor ⚡');
+                    pea.startPlayingMood('Pea refleks oyununa hazırlanıyor ⚡');
                     setGameMode('reflex');
                   }}
                 >
@@ -805,7 +272,7 @@ export default function HomeScreen() {
                     <Text style={styles.gameOptionTag}>Zorluk: Artan</Text>
                   </View>
                   <Text style={styles.gameOptionDesc}>
-                    Pea’nin istediği şeyi hızlıca seç. Süre her turda biraz daha kısalıyor!
+                    Pea'nin istediği şeyi hızlıca seç. Süre her turda biraz daha kısalıyor!
                   </Text>
                   <View style={styles.gameOptionStatsRow}>
                     <Text style={styles.gameOptionStatPositive}>Eğlence: ++</Text>
@@ -813,12 +280,11 @@ export default function HomeScreen() {
                   </View>
                 </TouchableOpacity>
 
-                {/* 3️⃣ Flappy Pea kartı */}
+                {/* Flappy Pea */}
                 <TouchableOpacity
                   style={styles.gameOptionCard}
                   onPress={() => {
-                    setMood('playing');
-                    setCustomMessage('Pea uçmaya hazırlanıyor! 🪽');
+                    pea.startPlayingMood('Pea uçmaya hazırlanıyor! 🪽');
                     setGameMode('flappy');
                   }}
                 >
@@ -827,8 +293,7 @@ export default function HomeScreen() {
                     <Text style={styles.gameOptionTag}>Zorluk: Orta</Text>
                   </View>
                   <Text style={styles.gameOptionDesc}>
-                    Ekrana dokunarak Pea’yi uçur, borulara değmeden aralardan
-                    geçmeye çalış.
+                    Ekrana dokunarak Pea'yi uçur, borulara değmeden aralardan geçmeye çalış.
                   </Text>
                   <View style={styles.gameOptionStatsRow}>
                     <Text style={styles.gameOptionStatPositive}>Eğlence: +++</Text>
@@ -836,15 +301,9 @@ export default function HomeScreen() {
                   </View>
                 </TouchableOpacity>
 
-
-
-                {/* Kapat butonu */}
                 <TouchableOpacity
                   style={styles.gameExitButton}
-                  onPress={() => {
-                    setIsGameOpen(false);
-                    setGameMode(null);
-                  }}
+                  onPress={() => { setIsGameOpen(false); setGameMode(null); }}
                 >
                   <Text style={styles.gameExitText}>Kapat</Text>
                 </TouchableOpacity>
@@ -854,36 +313,24 @@ export default function HomeScreen() {
             {gameMode === 'tap' && (
               <TapGame
                 durationSeconds={15}
-                onFinished={handleTapFinished}
-                onClose={() => {
-                  setIsGameOpen(false);
-                  setGameMode(null);
-                }}
-                onTap={bouncePea}   // her tıklamada Pea hafif zıplasın istiyorsan
+                onFinished={pea.onTapGameFinished}
+                onClose={() => { setIsGameOpen(false); setGameMode(null); }}
+                onTap={bouncePea}
               />
             )}
 
             {gameMode === 'reflex' && (
               <ReflexGame
-                onClose={() => {
-                  setIsGameOpen(false);
-                  setGameMode(null);
-                }}
-                onFinished={handleReflexFinished}
+                onClose={() => { setIsGameOpen(false); setGameMode(null); }}
+                onFinished={pea.onReflexFinished}
               />
             )}
 
-
-
-
             {gameMode === 'flappy' && (
               <FlappyPeaGame
-                sprite={peaSprites[mood]}
-                highScore={flappyHighScore}
-                onClose={() => {
-                  setIsGameOpen(false);
-                  setGameMode(null);
-                }}
+                sprite={peaSprites[pea.mood]}
+                highScore={pea.flappyHighScore}
+                onClose={() => { setIsGameOpen(false); setGameMode(null); }}
                 onFinished={handleFlappyFinished}
               />
             )}
@@ -893,50 +340,34 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
-type EmojiParticleProps = {
-  kind: ParticleKind;
-};
+
+// ── EmojiParticle ─────────────────────────────────────────────────────────────
+
+type EmojiParticleProps = { kind: ParticleKind };
 
 function EmojiParticle({ kind }: EmojiParticleProps) {
-  const opacity = useRef(new Animated.Value(1)).current;
+  const opacity    = useRef(new Animated.Value(1)).current;
   const translateY = useRef(new Animated.Value(10)).current;
-  const translateX = useRef(
-    new Animated.Value((Math.random() - 0.5) * 80)
-  ).current;
-  const scale = useRef(new Animated.Value(0.9)).current;
+  const translateX = useRef(new Animated.Value((Math.random() - 0.5) * 80)).current;
+  const scale      = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: -20,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scale, {
-        toValue: 1.2,
-        duration: 500,
-        useNativeDriver: true,
-      }),
+      Animated.timing(translateY, { toValue: -20,  duration: 500, useNativeDriver: true }),
+      Animated.timing(opacity,    { toValue: 0,    duration: 500, useNativeDriver: true }),
+      Animated.timing(scale,      { toValue: 1.2,  duration: 500, useNativeDriver: true }),
     ]).start();
   }, [opacity, translateY, scale]);
 
   let emoji = '💧';
-  if (kind === 'sun') emoji = '☀️';
+  if (kind === 'sun')  emoji = '☀️';
   if (kind === 'soil') emoji = '🌱';
 
   return (
     <Animated.Text
       style={[
         styles.particleEmoji,
-        {
-          opacity,
-          transform: [{ translateY }, { translateX }, { scale }],
-        },
+        { opacity, transform: [{ translateY }, { translateX }, { scale }] },
       ]}
     >
       {emoji}
@@ -944,11 +375,9 @@ function EmojiParticle({ kind }: EmojiParticleProps) {
   );
 }
 
-// ----- BUTON BİLEŞENİ -----
-type ActionButtonProps = {
-  label: string;
-  onPress: () => void;
-};
+// ── ActionButton ──────────────────────────────────────────────────────────────
+
+type ActionButtonProps = { label: string; onPress: () => void };
 
 function ActionButton({ label, onPress }: ActionButtonProps) {
   return (
@@ -958,7 +387,8 @@ function ActionButton({ label, onPress }: ActionButtonProps) {
   );
 }
 
-// ----- STYLES -----
+// ── Styles ────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1064,6 +494,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     alignItems: 'center',
   },
+  gameCardFlappy: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 0,
+    paddingHorizontal: 16,
+    paddingTop: 32,
+    paddingBottom: 24,
+    justifyContent: 'flex-start',
+  },
   gameTitle: {
     fontSize: 20,
     fontWeight: '700',
@@ -1075,30 +514,6 @@ const styles = StyleSheet.create({
     color: '#4B5563',
     textAlign: 'center',
     marginBottom: 12,
-  },
-  gameInfo: {
-    fontSize: 14,
-    color: '#111827',
-    marginVertical: 2,
-  },
-  gameTapArea: {
-    marginTop: 12,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: '#22C55E',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#16A34A',
-    shadowOpacity: 0.5,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  gameTapText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#ECFDF5',
   },
   gameExitButton: {
     marginTop: 16,
@@ -1174,7 +589,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#4B5563',
   },
-    gameOptionStatsRow: {
+  gameOptionStatsRow: {
     flexDirection: 'row',
     marginTop: 8,
   },
@@ -1183,7 +598,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: '#DCFCE7', // açık yeşil
+    backgroundColor: '#DCFCE7',
     color: '#166534',
     fontSize: 11,
     fontWeight: '600',
@@ -1192,22 +607,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: '#FEE2E2', // açık kırmızı
+    backgroundColor: '#FEE2E2',
     color: '#B91C1C',
     fontSize: 11,
     fontWeight: '600',
   },
-  gameCardFlappy: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 0,
-    paddingHorizontal: 16,
-    paddingTop: 32,
-    paddingBottom: 24,
-    justifyContent: 'flex-start',
-  },
-
-    particlesLayer: {
+  particlesLayer: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -1223,7 +628,7 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-    devToggleButton: {
+  devToggleButton: {
     marginTop: 4,
     marginBottom: 2,
   },
@@ -1233,7 +638,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textDecorationLine: 'underline',
   },
-    topBar: {
+  topBar: {
     width: '100%',
     paddingHorizontal: 24,
     flexDirection: 'row',
@@ -1258,7 +663,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1F2937',
   },
-
-
-
 });
