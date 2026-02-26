@@ -38,13 +38,14 @@ Three sleep reasons (`tiredFromPlay`, `manual`, `longAway`) each have different 
 
 ### Persistence (AsyncStorage keys)
 
+All keys are loaded together via `multiGet` in the single `initPea` effect on mount, and stats are saved together via `multiSet` in the `saveStats` effect whenever any stat changes (guarded by `hasLoadedStats` ref to prevent writing initial values before load completes).
+
 | Key | Value |
 |-----|-------|
 | `PEA_LAST_VISIT` | Timestamp (ms) — used to detect "long away" (> 30 min) |
+| `PEA_WATER` / `PEA_SUN` / `PEA_SOIL` / `PEA_FUN` / `PEA_ENERGY` | Number (0–100) |
 | `PEA_FLAPPY_HIGHSCORE` | Number |
 | `PEA_COINS` | Number |
-
-Stats themselves are **not persisted** — they reset on app restart.
 
 ### Assets
 

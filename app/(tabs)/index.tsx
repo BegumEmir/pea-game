@@ -96,14 +96,13 @@ const SHORT_SLEEP_MS = 5000;
 const TIRED_SLEEP_MS = 20000;
 const LONG_AWAY_MINUTES = 30;
 
-export default function HomeScreen() {
-  // Başlangıç statları
-  const INITIAL_WATER = 60;
-  const INITIAL_SUN = 60;
-  const INITIAL_SOIL = 60;
-  const INITIAL_FUN = 50;
-  const INITIAL_ENERGY = 80;
+const INITIAL_WATER  = 60;
+const INITIAL_SUN    = 60;
+const INITIAL_SOIL   = 60;
+const INITIAL_FUN    = 50;
+const INITIAL_ENERGY = 80;
 
+export default function HomeScreen() {
   const [water, setWater] = useState(INITIAL_WATER);
   const [sun, setSun] = useState(INITIAL_SUN);
   const [soil, setSoil] = useState(INITIAL_SOIL);
@@ -141,6 +140,8 @@ export default function HomeScreen() {
 
   const [particles, setParticles] = useState<Array<{ id: number; kind: ParticleKind }>>([]);
   const particleIdRef = useRef(0);
+  // Guard: prevents the save effect from writing initial values over real saved data on startup
+  const hasLoadedStats = useRef(false);
 
   const [showDevPanel, setShowDevPanel] = useState(false);
 
@@ -269,62 +270,66 @@ export default function HomeScreen() {
   };
 
   
-  // APP açıldığında: en son ne zaman oynadık?
+  // APP başladığında tüm kayıtlı verileri tek seferde yükle
   useEffect(() => {
-    const checkLastVisit = async () => {
+    const initPea = async () => {
       try {
-        const lastVisitString = await AsyncStorage.getItem('PEA_LAST_VISIT');
-        const now = Date.now();
+        const entries = await AsyncStorage.multiGet([
+          'PEA_WATER', 'PEA_SUN', 'PEA_SOIL', 'PEA_FUN', 'PEA_ENERGY',
+          'PEA_LAST_VISIT', 'PEA_COINS', 'PEA_FLAPPY_HIGHSCORE',
+        ]);
+        const stored = Object.fromEntries(entries.map(([k, v]) => [k, v]));
 
-        if (!lastVisitString) {
-          await AsyncStorage.setItem('PEA_LAST_VISIT', String(now));
-          return;
+        // Kayıtlı stat yoksa başlangıç değerlerini kullan
+        let w  = stored['PEA_WATER']  != null ? Number(stored['PEA_WATER'])  : INITIAL_WATER;
+        let s  = stored['PEA_SUN']    != null ? Number(stored['PEA_SUN'])    : INITIAL_SUN;
+        let so = stored['PEA_SOIL']   != null ? Number(stored['PEA_SOIL'])   : INITIAL_SOIL;
+        let f  = stored['PEA_FUN']    != null ? Number(stored['PEA_FUN'])    : INITIAL_FUN;
+        let e  = stored['PEA_ENERGY'] != null ? Number(stored['PEA_ENERGY']) : INITIAL_ENERGY;
+
+        // Uzun süre geri gelmedik mi? Penaltıyı yüklenen statlara uygula
+        const now = Date.now();
+        let longAway = false;
+        if (stored['PEA_LAST_VISIT']) {
+          const diffMinutes = (now - parseInt(stored['PEA_LAST_VISIT'], 10)) / 60000;
+          if (diffMinutes > LONG_AWAY_MINUTES) {
+            longAway = true;
+            e  = 15;
+            w  = clamp(w  - 10);
+            s  = clamp(s  - 10);
+            so = clamp(so - 5);
+          }
         }
 
-        const lastVisit = parseInt(lastVisitString, 10);
-        const diffMinutes = (now - lastVisit) / 60000;
+        setWater(w);
+        setSun(s);
+        setSoil(so);
+        setFun(f);
+        setEnergy(e);
 
-        if (diffMinutes > LONG_AWAY_MINUTES) {
-          const tiredEnergy = 15;
-          const slightlyDryWater = clamp(water - 10);
-          const slightlyLowSun = clamp(sun - 10);
-          const slightlyLowSoil = clamp(soil - 5);
-
-          setEnergy(tiredEnergy);
-          setWater(slightlyDryWater);
-          setSun(slightlyLowSun);
-          setSoil(slightlyLowSoil);
-
+        if (longAway) {
           setIsSleeping(true);
           setSleepReason('longAway');
           setSleepStartTime(now);
+          setSleepNow(now);
           setWasLongAway(true);
           setMood('sleepy');
-          setCustomMessage(null);
+        } else {
+          setMood(calculateMood(w, s, so, f, e));
         }
+
+        if (stored['PEA_COINS'] != null)         setCoins(Number(stored['PEA_COINS']));
+        if (stored['PEA_FLAPPY_HIGHSCORE'])       setFlappyHighScore(Number(stored['PEA_FLAPPY_HIGHSCORE']));
 
         await AsyncStorage.setItem('PEA_LAST_VISIT', String(now));
-      } catch (e) {
-        console.warn('Last visit kontrolünde hata:', e);
+      } catch (err) {
+        console.warn('Pea başlatılamadı:', err);
+      } finally {
+        hasLoadedStats.current = true;
       }
     };
 
-    checkLastVisit();
-  }, []);
-
-    useEffect(() => {
-    const loadCoins = async () => {
-      try {
-        const saved = await AsyncStorage.getItem('PEA_COINS');
-        if (saved != null) {
-          setCoins(Number(saved));
-        }
-      } catch (e) {
-        console.warn('Pea coins okunamadı:', e);
-      }
-    };
-
-    loadCoins();
+    initPea();
   }, []);
 
 
@@ -351,18 +356,25 @@ export default function HomeScreen() {
     return () => clearInterval(intervalId);
   }, [water, sun, soil, fun, energy, isSleeping, isGameOpen]);
 
-  // Stat / mood değiştikçe son oynama zamanını kaydet
+  // Statlar değişince kaydet — ilk yükleme bitene kadar çalışmaz
   useEffect(() => {
-    const saveLastVisit = async () => {
+    if (!hasLoadedStats.current) return;
+    const saveStats = async () => {
       try {
-        await AsyncStorage.setItem('PEA_LAST_VISIT', String(Date.now()));
+        await AsyncStorage.multiSet([
+          ['PEA_LAST_VISIT', String(Date.now())],
+          ['PEA_WATER',      String(water)],
+          ['PEA_SUN',        String(sun)],
+          ['PEA_SOIL',       String(soil)],
+          ['PEA_FUN',        String(fun)],
+          ['PEA_ENERGY',     String(energy)],
+        ]);
       } catch (e) {
-        console.warn('Son oynama zamanı kaydedilemedi:', e);
+        console.warn('Pea durumu kaydedilemedi:', e);
       }
     };
-
-    saveLastVisit();
-  }, [water, sun, soil, fun, energy, mood]);
+    saveStats();
+  }, [water, sun, soil, fun, energy]);
 
     useEffect(() => {
       const saveCoins = async () => {
@@ -444,22 +456,7 @@ export default function HomeScreen() {
 
 
 
-  useEffect(() => {
-    const loadHighScore = async () => {
-      try {
-        const saved = await AsyncStorage.getItem('PEA_FLAPPY_HIGHSCORE');
-        if (saved) {
-          setFlappyHighScore(Number(saved));
-        }
-      } catch (e) {
-        console.warn('Flappy high score okunamadı:', e);
-      }
-    };
-
-    loadHighScore();
-  }, []);
-
-    const handleReflexFinished = (score: number) => {
+  const handleReflexFinished = (score: number) => {
     if (score <= 0) {
       setCustomMessage('Refleks oyununda ısınma turu gibi geçti 😌');
       return;
