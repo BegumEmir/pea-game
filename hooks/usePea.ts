@@ -81,8 +81,12 @@ export function usePea(isGameOpen: boolean) {
 
   // ── Refs ───────────────────────────────────────────────────────────────────
 
-  const hasLoadedStats = useRef(false);
-  const handleWakeRef  = useRef<(early: boolean) => void>(null!);
+  const hasLoadedStats  = useRef(false);
+  const handleWakeRef   = useRef<(early: boolean) => void>(null!);
+  // Mirrors of state values read inside the decay interval — avoids restarting the timer on every tick
+  const statsRef        = useRef({ water, sun, soil, fun, energy });
+  const isSleepingRef   = useRef(isSleeping);
+  const isGameOpenRef   = useRef(isGameOpen);
 
   // ── Private helpers ────────────────────────────────────────────────────────
 
@@ -154,8 +158,11 @@ export function usePea(isGameOpen: boolean) {
     updateMood(water, sun, soil, fun, newEnergy);
   };
 
-  // Keep ref in sync on every render so the sleep-countdown effect never calls a stale version
-  handleWakeRef.current = handleWake;
+  // Keep refs in sync on every render so interval callbacks never use stale values
+  handleWakeRef.current  = handleWake;
+  statsRef.current       = { water, sun, soil, fun, energy };
+  isSleepingRef.current  = isSleeping;
+  isGameOpenRef.current  = isGameOpen;
 
   // ── Effects ────────────────────────────────────────────────────────────────
 
@@ -247,20 +254,22 @@ export function usePea(isGameOpen: boolean) {
     save();
   }, [coins]);
 
-  // Slowly decay stats over time; paused while sleeping or in a game
+  // Slowly decay stats over time; paused while sleeping or in a game.
+  // Reads from refs so the interval is created once (deps=[]) and never restarted on each tick.
   useEffect(() => {
     const id = setInterval(() => {
-      if (isSleeping || isGameOpen) return;
-      const nw = clamp(water  - 2);
-      const ns = clamp(sun    - 1);
-      const no = clamp(soil   - 0.5);
-      const nf = clamp(fun    - 0.3);
-      const ne = clamp(energy - 0.2);
+      if (isSleepingRef.current || isGameOpenRef.current) return;
+      const { water: w, sun: s, soil: so, fun: f, energy: e } = statsRef.current;
+      const nw = clamp(w  - 2);
+      const ns = clamp(s  - 1);
+      const no = clamp(so - 0.5);
+      const nf = clamp(f  - 0.3);
+      const ne = clamp(e  - 0.2);
       setWater(nw); setSun(ns); setSoil(no); setFun(nf); setEnergy(ne);
       updateMood(nw, ns, no, nf, ne);
     }, 5000);
     return () => clearInterval(id);
-  }, [water, sun, soil, fun, energy, isSleeping, isGameOpen]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sleep countdown + auto-wake
   useEffect(() => {
