@@ -35,34 +35,34 @@ The root screen contained all Pea state, every `useEffect`, all game-result hand
 **File:** `hooks/usePea.ts`
 The stat-decay `useEffect` listed `[water, sun, soil, fun, energy, isSleeping, isGameOpen]` as deps. Every decay tick changed all five stats, immediately tearing down and recreating the 5-second interval — resetting the timer to zero on every cycle, and also on every care action. Fixed by adding `statsRef`, `isSleepingRef`, and `isGameOpenRef` (synced in the render body); interval deps changed to `[]` so it runs once for the component lifetime.
 
+### #8 — FlappyPea game loop uses `setInterval` at 16 ms instead of `requestAnimationFrame`
+**File:** `components/FlappyPeaGame.tsx`
+Already replaced with a `requestAnimationFrame` loop (delta-time, vsync-aligned, `deps=[]`) in commit `bf37fa0`. ISSUES.md was written after that commit and incorrectly listed this as open.
+
+### #9 — Unstable function references cause unnecessary child re-renders
+**Files:** `hooks/usePea.ts`, `app/(tabs)/index.tsx`
+`experiments.reactCompiler: true` is set in `app.json`. The React Compiler automatically memoizes all components and callbacks — manually adding `useCallback` would be redundant and could interfere with compiler output. No action needed.
+
+### #10 — Unused Expo template files still in the project
+**Files:** `app/(tabs)/explore.tsx`, `components/hello-wave.tsx`, `components/external-link.tsx`, `components/parallax-scroll-view.tsx`, `components/themed-text.tsx`, `components/themed-view.tsx`, `components/ui/collapsible.tsx`, `components/ui/icon-symbol.tsx`, `components/ui/icon-symbol.ios.tsx`, `components/haptic-tab.tsx`, `constants/theme.ts`, `hooks/use-theme-color.ts`
+All deleted from disk (unstaged). Awaiting commit.
+
+### #11 — "Explore" tab is live Expo template boilerplate
+**File:** `app/(tabs)/explore.tsx`, `app/(tabs)/_layout.tsx`
+`explore.tsx` deleted; `_layout.tsx` updated to single `<Tabs.Screen name="index" />` with tab bar hidden. Awaiting commit.
+
+### #12 — Magic numbers for mood thresholds are scattered across the codebase
+**File:** `hooks/usePea.ts`
+All thresholds already extracted as named constants during the #6 refactor: `LOW_WATER_THRESHOLD`, `LOW_SUN_THRESHOLD`, `LOW_SOIL_THRESHOLD`, `LOW_ENERGY_THRESHOLD`, `LOW_FUN_THRESHOLD`, `ENERGY_REFUSE_SLEEP`, `ENERGY_COLLAPSE`. No action needed.
+
+### #14 — `saveCoins` effect runs on mount before coins are loaded
+**File:** `hooks/usePea.ts`
+Fixed by moving `hasLoadedStats.current = true` to before the state-setter calls inside `initPea`, ensuring any React re-render triggered by those setters sees the flag as `true` and the `saveCoins`/`saveStats` effects don't skip saving the loaded values.
+
 ---
 
 ## 🔲 Open
 
-### #8 — FlappyPea game loop uses `setInterval` at 16 ms instead of `requestAnimationFrame`
-**File:** `components/FlappyPeaGame.tsx`
-The physics loop runs on `setInterval(fn, 16)`, which does not align with the display's vsync and can drift or fire multiple times per frame on slower devices. Should be replaced with a `requestAnimationFrame` loop using `delta` time for frame-rate-independent physics.
-
-### #9 — Unstable function references cause unnecessary child re-renders
-**Files:** `hooks/usePea.ts`, `app/(tabs)/index.tsx`
-Care actions (`giveWater`, `giveSun`, etc.) and wrapper callbacks are recreated on every render because they are plain functions, not wrapped in `useCallback`. Components like `ActionButton` and the game overlays receive new function references each render, defeating `React.memo` if it is ever added.
-
-### #10 — Unused Expo template files still in the project
-**Files:** `app/(tabs)/explore.tsx`, `components/hello-wave.tsx`, `components/external-link.tsx`, `components/parallax-scroll-view.tsx`, `components/themed-text.tsx`, `components/themed-view.tsx`, `components/ui/collapsible.tsx`, `components/ui/icon-symbol.tsx`, `components/ui/icon-symbol.ios.tsx`, `components/haptic-tab.tsx`
-All of these are boilerplate from the Expo template. None are used by the game. They add noise, inflate bundle size, and confuse new contributors.
-
-### #11 — "Explore" tab is live Expo template boilerplate
-**File:** `app/(tabs)/explore.tsx`, `app/(tabs)/_layout.tsx`
-The second tab shows the default Expo "Explore" screen with generic documentation text. Either replace it with a real game screen (stats history, shop, settings) or remove the tab entirely to avoid confusing users.
-
-### #12 — Magic numbers for mood thresholds are scattered across the codebase
-**Files:** `hooks/usePea.ts` (`calculateMood`), `hooks/usePea.ts` (`toggleSleep`, game result handlers)
-Numbers like `30` (thirst/sun/soil threshold), `15` (energy → sleepy), `20` (fun → bored), `50` (energy high enough to refuse sleep), `8` (energy collapse after game) appear as bare literals with no named constant. If a threshold is tweaked, every occurrence must be found manually.
-
 ### #13 — `'playing'` mood has no dedicated sprite
 **File:** `app/(tabs)/index.tsx` (`peaSprites`)
-`playing` maps to `pea_happy.png`. During a game session Pea visually looks the same as when it is simply happy. Adding a dedicated playing sprite (or at least a distinct animated state) would make it clear the game is active.
-
-### #14 — `saveCoins` effect runs on mount before coins are loaded
-**File:** `hooks/usePea.ts`
-The coins `useEffect` has no guard equivalent to `hasLoadedStats`. On startup it fires immediately with `coins = 0` and writes `PEA_COINS = "0"` to AsyncStorage before `initPea` has a chance to read the real value. In practice the load is fast enough that the write likely arrives second, but the race is real. The `hasLoadedStats` guard (or a dedicated `hasLoadedCoins` ref) should cover this effect too.
+`playing` maps to `pea_happy.png`. During a game session Pea visually looks the same as when it is simply happy. Requires a new `assets/pea/pea_playing.png` sprite file, then a one-line update to the `peaSprites` map.

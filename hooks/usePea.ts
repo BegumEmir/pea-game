@@ -28,6 +28,15 @@ const LONG_AWAY_MINUTES = 30;
 export const SHORT_SLEEP_MS  = 5000;
 export const TIRED_SLEEP_MS  = 20000;
 
+// Mood thresholds used in calculateMood and care logic
+const LOW_WATER_THRESHOLD  = 30;
+const LOW_SUN_THRESHOLD    = 30;
+const LOW_SOIL_THRESHOLD   = 30;
+const LOW_ENERGY_THRESHOLD = 15;
+const LOW_FUN_THRESHOLD    = 20;
+const ENERGY_REFUSE_SLEEP  = 50; // Energy level above which manual sleep is refused
+const ENERGY_COLLAPSE      = 8;  // Energy level below which Pea falls asleep after a game
+
 // ── Pure helpers ─────────────────────────────────────────────────────────────
 
 function clamp(value: number) {
@@ -41,11 +50,11 @@ export function calculateMood(
   fun: number,
   energy: number,
 ): Mood {
-  if (water < 30)  return 'thirsty';
-  if (sun < 30)    return 'needsSun';
-  if (soil < 30)   return 'needsSoil';
-  if (energy < 15) return 'sleepy';
-  if (fun < 20)    return 'bored';
+  if (water < LOW_WATER_THRESHOLD)  return 'thirsty';
+  if (sun < LOW_SUN_THRESHOLD)      return 'needsSun';
+  if (soil < LOW_SOIL_THRESHOLD)    return 'needsSoil';
+  if (energy < LOW_ENERGY_THRESHOLD) return 'sleepy';
+  if (fun < LOW_FUN_THRESHOLD)      return 'bored';
   return 'happy';
 }
 
@@ -211,11 +220,14 @@ export function usePea(isGameOpen: boolean) {
         if (stored['PEA_COINS'] != null)       setCoins(Number(stored['PEA_COINS']));
         if (stored['PEA_FLAPPY_HIGHSCORE'])     setFlappyHighScore(Number(stored['PEA_FLAPPY_HIGHSCORE']));
 
+        // Mark as loaded BEFORE the last async write so that any re-render
+        // triggered by the setters above sees hasLoadedStats.current = true
+        // and the saveStats / saveCoins effects don't skip the persisted values.
+        hasLoadedStats.current = true;
+
         await AsyncStorage.setItem('PEA_LAST_VISIT', String(now));
       } catch (err) {
         console.warn('Pea başlatılamadı:', err);
-      } finally {
-        hasLoadedStats.current = true;
       }
     };
 
@@ -242,8 +254,9 @@ export function usePea(isGameOpen: boolean) {
     save();
   }, [water, sun, soil, fun, energy]);
 
-  // Save coins whenever they change
+  // Save coins whenever they change (guarded until initial load completes)
   useEffect(() => {
+    if (!hasLoadedStats.current) return;
     const save = async () => {
       try {
         await AsyncStorage.setItem('PEA_COINS', String(coins));
@@ -319,7 +332,7 @@ export function usePea(isGameOpen: boolean) {
       handleWake(true);
       return;
     }
-    if (energy >= 50) {
+    if (energy >= ENERGY_REFUSE_SLEEP) {
       setMood('bored');
       setCustomMessage('Daha uykum yok, şimdi uyumak istemiyorum 😤');
       return;
@@ -372,7 +385,7 @@ export function usePea(isGameOpen: boolean) {
     const coinsEarned = Math.max(1, Math.floor(score / 3));
     setCoins(c => c + coinsEarned);
 
-    if (newEnergy < 8) {
+    if (newEnergy < ENERGY_COLLAPSE) {
       const now = Date.now();
       setIsSleeping(true);
       setSleepReason('tiredFromPlay');

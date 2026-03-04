@@ -74,8 +74,10 @@ export default function FlappyPeaGame({
   const [flappyStarted, setFlappyStarted] = useState(false);
   const [flappyGameOver, setFlappyGameOver] = useState(false);
   const [flappyScore, setFlappyScore] = useState(0);
-  // Ref so the game loop always reads the current score without needing it in the effect deps
-  const flappyScoreRef = useRef(0);
+  // Refs so the RAF loop always reads the current values without needing them in the effect deps
+  const flappyScoreRef   = useRef(0);
+  const flappyStartedRef = useRef(false);
+  const flappyGameOverRef = useRef(false);
 
   const [flappyPipes, setFlappyPipes] = useState<FlappyPipe[]>(() => [
     {
@@ -87,95 +89,110 @@ export default function FlappyPeaGame({
   ]);
   const flappyPipeIdRef = useRef(1);
 
+  // Sync refs every render so the RAF loop never reads stale values
+  flappyStartedRef.current  = flappyStarted;
+  flappyGameOverRef.current = flappyGameOver;
+
   // Yerçekimi + boru hareketi + çarpışma + skor
+  // requestAnimationFrame loop with delta time for vsync-aligned, frame-rate-independent physics.
+  // deps=[] so the loop is created once and never torn down mid-game.
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      if (flappyGameOver) return;
+    let rafId: number;
+    let lastTimestamp: number | null = null;
 
-      // Yerçekimi
-      if (flappyStarted) {
-        flappyVelRef.current += FLAPPY_GRAVITY;
-        flappyYRef.current += flappyVelRef.current;
-
-        if (flappyYRef.current > FLAPPY_MAX_Y) {
-          flappyYRef.current = FLAPPY_MAX_Y;
-          setFlappyGameOver(true);
-        }
-        if (flappyYRef.current < FLAPPY_MIN_Y) {
-          flappyYRef.current = FLAPPY_MIN_Y;
-          flappyVelRef.current = 0;
-        }
-
-        setFlappyPeaY(flappyYRef.current);
+    const loop = (timestamp: number) => {
+      if (lastTimestamp === null) {
+        lastTimestamp = timestamp;
+        rafId = requestAnimationFrame(loop);
+        return;
       }
 
-      const peaCenterY = FLAPPY_AREA_HEIGHT / 2 + flappyYRef.current;
-      const peaRadius = FLAPPY_PEA_SIZE / 2;
-      const peaCenterX = FLAPPY_PEA_X + peaRadius;
+      const rawDelta = timestamp - lastTimestamp;
+      lastTimestamp  = timestamp;
+      // Clamp to ≤3 frames so a background/tab switch doesn't explode physics
+      const delta = Math.min(rawDelta / 16.667, 3);
 
-      // Pea ekranda daha küçük “vurulabilir alan” olsun
-      const hitRadius = peaRadius * 0.7;
+      if (!flappyGameOverRef.current) {
+        // Yerçekimi
+        if (flappyStartedRef.current) {
+          flappyVelRef.current += FLAPPY_GRAVITY * delta;
+          flappyYRef.current   += flappyVelRef.current * delta;
 
-      setFlappyPipes(prev => {
-        if (!flappyStarted) return prev;
+          if (flappyYRef.current > FLAPPY_MAX_Y) {
+            flappyYRef.current = FLAPPY_MAX_Y;
+            setFlappyGameOver(true);
+          }
+          if (flappyYRef.current < FLAPPY_MIN_Y) {
+            flappyYRef.current   = FLAPPY_MIN_Y;
+            flappyVelRef.current = 0;
+          }
 
-        let newScore = flappyScoreRef.current;
-        let gameOver = flappyGameOver;
-
-        const updated = prev
-          .map(pipe => {
-            const newX = pipe.x - FLAPPY_PIPE_SPEED;
-            const gapCenter = pipe.gapCenter;
-            const gapTop =
-              FLAPPY_AREA_HEIGHT / 2 +
-              gapCenter -
-              FLAPPY_GAP_SIZE / 2;
-            const gapBottom =
-              FLAPPY_AREA_HEIGHT / 2 +
-              gapCenter +
-              FLAPPY_GAP_SIZE / 2;
-
-            const pipeLeft = newX;
-            const pipeRight = newX + FLAPPY_PIPE_WIDTH;
-
-            let passed = pipe.passed;
-            if (!passed && pipeRight < peaCenterX - hitRadius) {
-              passed = true;
-              newScore += 1;
-            }
-
-            const horizontallyOverlaps =
-              peaCenterX + hitRadius > pipeLeft &&
-              peaCenterX - hitRadius < pipeRight;
-
-            const GAP_MARGIN = 8; // Çarpma için ufak tolerans
-
-            const verticallyOutsideGap =
-            peaCenterY - hitRadius < gapTop - GAP_MARGIN ||
-            peaCenterY + hitRadius > gapBottom + GAP_MARGIN;
-
-            if (!gameOver && horizontallyOverlaps && verticallyOutsideGap) {
-              gameOver = true;
-            }
-
-            return { ...pipe, x: newX, passed };
-          })
-          .filter(pipe => pipe.x > -FLAPPY_PIPE_WIDTH - 30);
-
-        if (newScore !== flappyScoreRef.current) {
-          flappyScoreRef.current = newScore;
-          setFlappyScore(newScore);
-        }
-        if (gameOver && !flappyGameOver) {
-          setFlappyGameOver(true);
+          setFlappyPeaY(flappyYRef.current);
         }
 
-        return updated;
-      });
-    }, 16);
+        const peaCenterY = FLAPPY_AREA_HEIGHT / 2 + flappyYRef.current;
+        const peaRadius  = FLAPPY_PEA_SIZE / 2;
+        const peaCenterX = FLAPPY_PEA_X + peaRadius;
+        // Pea ekranda daha küçük “vurulabilir alan” olsun
+        const hitRadius  = peaRadius * 0.7;
 
-    return () => clearInterval(intervalId);
-  }, [flappyStarted, flappyGameOver]);
+        setFlappyPipes(prev => {
+          if (!flappyStartedRef.current) return prev;
+
+          let newScore = flappyScoreRef.current;
+          let gameOver = flappyGameOverRef.current;
+
+          const updated = prev
+            .map(pipe => {
+              const newX      = pipe.x - FLAPPY_PIPE_SPEED * delta;
+              const gapCenter = pipe.gapCenter;
+              const gapTop    = FLAPPY_AREA_HEIGHT / 2 + gapCenter - FLAPPY_GAP_SIZE / 2;
+              const gapBottom = FLAPPY_AREA_HEIGHT / 2 + gapCenter + FLAPPY_GAP_SIZE / 2;
+              const pipeLeft  = newX;
+              const pipeRight = newX + FLAPPY_PIPE_WIDTH;
+
+              let passed = pipe.passed;
+              if (!passed && pipeRight < peaCenterX - hitRadius) {
+                passed = true;
+                newScore += 1;
+              }
+
+              const horizontallyOverlaps =
+                peaCenterX + hitRadius > pipeLeft &&
+                peaCenterX - hitRadius < pipeRight;
+
+              const GAP_MARGIN = 8; // Çarpma için ufak tolerans
+
+              const verticallyOutsideGap =
+                peaCenterY - hitRadius < gapTop    - GAP_MARGIN ||
+                peaCenterY + hitRadius > gapBottom + GAP_MARGIN;
+
+              if (!gameOver && horizontallyOverlaps && verticallyOutsideGap) {
+                gameOver = true;
+              }
+
+              return { ...pipe, x: newX, passed };
+            })
+            .filter(pipe => pipe.x > -FLAPPY_PIPE_WIDTH - 30);
+
+          if (newScore !== flappyScoreRef.current) {
+            flappyScoreRef.current = newScore;
+            setFlappyScore(newScore);
+          }
+          if (gameOver && !flappyGameOverRef.current) {
+            setFlappyGameOver(true);
+          }
+
+          return updated;
+        });
+      }
+
+      rafId = requestAnimationFrame(loop);
+    };
+
+    rafId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafId);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Boru spawn
   useEffect(() => {
