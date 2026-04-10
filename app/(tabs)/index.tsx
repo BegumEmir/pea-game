@@ -224,12 +224,6 @@ export default function HomeScreen() {
         onRequestClose={() => { setIsGameOpen(false); setGameMode(null); }}
       >
         <View style={styles.gameOverlay}>
-          <View
-            style={[
-              styles.gameCard,
-              gameMode === 'flappy' && styles.gameCardFlappy,
-            ]}
-          >
             {gameMode === 'menu' && (
               <>
                 <View style={styles.gameMenuHeader}>
@@ -342,7 +336,6 @@ export default function HomeScreen() {
                 onFinished={handleFlappyFinished}
               />
             )}
-          </View>
         </View>
       </Modal>
     </>
@@ -486,26 +479,13 @@ const styles = StyleSheet.create({
   },
   gameOverlay: {
     flex: 1,
-    backgroundColor: '#0F172A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gameCard: {
-    width: '86%',
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    borderRadius: 24,
-    backgroundColor: '#F9FAFB',
-    alignItems: 'center',
-  },
-  gameCardFlappy: {
     width: '100%',
     height: '100%',
-    borderRadius: 0,
+    backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 16,
-    paddingTop: 32,
-    paddingBottom: 24,
-    justifyContent: 'flex-start',
+    paddingVertical: 24,
   },
   gameTitle: {
     fontSize: 20,
