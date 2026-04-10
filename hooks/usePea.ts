@@ -372,9 +372,9 @@ export function usePea(isGameOpen: boolean) {
 
   // ── Game result handlers ───────────────────────────────────────────────────
 
-  const onTapGameFinished = (score: number) => {
+  const onBubbleGameFinished = (score: number) => {
     if (score === 0) {
-      setCustomMessage('Hiç tıklamadın, bir dahaki sefere deneriz 😌');
+      setCustomMessage('Hiç balon patlayamadın, bir dahaki sefere! 😌');
       return;
     }
     const newFun    = clamp(fun    + score * 1.5);
@@ -392,12 +392,12 @@ export function usePea(isGameOpen: boolean) {
       setSleepStartTime(now);
       setSleepNow(now);
       setMood('sleepy');
-      setCustomMessage(`Oyun oynarken çok yoruldu ve uyuyakaldı 😴 (+${coinsEarned} 🍃)`);
+      setCustomMessage(`Balonları patlatırken yoruldu, uyuyakaldı 😴 (+${coinsEarned} 🍃)`);
       return;
     }
 
     setMood(calculateMood(water, sun, soil, newFun, newEnergy));
-    setCustomMessage(`Oyun bitti! ${score} puan topladın 🎮 (+${coinsEarned} 🍃)`);
+    setCustomMessage(`Balonları patlatarak ${score} puan topladın! 🫧 (+${coinsEarned} 🍃)`);
   };
 
   const onReflexFinished = (score: number) => {
@@ -468,6 +468,6 @@ export function usePea(isGameOpen: boolean) {
     // Game helpers
     tryPlay, startPlayingMood,
     // Game result handlers
-    onTapGameFinished, onReflexFinished, onFlappyGameResult,
+    onBubbleGameFinished, onReflexFinished, onFlappyGameResult,
   };
 }

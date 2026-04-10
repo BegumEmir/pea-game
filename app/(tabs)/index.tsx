@@ -8,14 +8,14 @@ import {
   Image,
   Animated,
 } from 'react-native';
-import TapGame from '../../components/TapGame';
+import BubbleGame from '../../components/BubbleGame';
 import FlappyPeaGame from '../../components/FlappyPeaGame';
 import ReflexGame from '../../components/ReflexGame';
 import { usePea, Mood, SHORT_SLEEP_MS, TIRED_SLEEP_MS } from '../../hooks/usePea';
 
 // ── Component-local types ─────────────────────────────────────────────────────
 
-type GameMode = 'menu' | 'tap' | 'flappy' | 'reflex' | null;
+type GameMode = 'menu' | 'bubble' | 'flappy' | 'reflex' | null;
 type ParticleKind = 'water' | 'sun' | 'soil';
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
@@ -238,20 +238,20 @@ export default function HomeScreen() {
                   )}
                 </View>
 
-                {/* Tıklama Oyunu */}
+                {/* Balon Patlatma */}
                 <TouchableOpacity
                   style={styles.gameOptionCard}
                   onPress={() => {
-                    pea.startPlayingMood('Pea tıklama oyunu oynuyor 🎮');
-                    setGameMode('tap');
+                    pea.startPlayingMood('Pea balon patlatıyor 🫧');
+                    setGameMode('bubble');
                   }}
                 >
                   <View style={styles.gameOptionHeader}>
-                    <Text style={styles.gameOptionTitle}>Tıklama Oyunu 💚</Text>
-                    <Text style={styles.gameOptionTag}>Hızlı refleks</Text>
+                    <Text style={styles.gameOptionTitle}>Balon Patlatma 🫧</Text>
+                    <Text style={styles.gameOptionTag}>30 saniye</Text>
                   </View>
                   <Text style={styles.gameOptionDesc}>
-                    15 saniye içinde olabildiğince hızlı dokun, Pea'nin eğlencesi patlasın!
+                    Yükselen balonlara dokun, patlat! Büyük balonlar daha çok puan getiriyor.
                   </Text>
                   <View style={styles.gameOptionStatsRow}>
                     <Text style={styles.gameOptionStatPositive}>Eğlence: ++</Text>
@@ -310,12 +310,10 @@ export default function HomeScreen() {
               </>
             )}
 
-            {gameMode === 'tap' && (
-              <TapGame
-                durationSeconds={15}
-                onFinished={pea.onTapGameFinished}
+            {gameMode === 'bubble' && (
+              <BubbleGame
+                onFinished={pea.onBubbleGameFinished}
                 onClose={() => { setIsGameOpen(false); setGameMode(null); }}
-                onTap={bouncePea}
               />
             )}
 
