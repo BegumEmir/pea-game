@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const DURATION_SECONDS = 30;
 const SPAWN_INTERVAL_MS = 900;
@@ -40,6 +41,7 @@ type BubbleGameProps = {
 };
 
 export default function BubbleGame({ onFinished, onClose }: BubbleGameProps) {
+  const insets = useSafeAreaInsets();
   const [timeLeft, setTimeLeft]   = useState(DURATION_SECONDS);
   const [score, setScore]         = useState(0);
   const [gameOver, setGameOver]   = useState(false);
@@ -152,7 +154,7 @@ export default function BubbleGame({ onFinished, onClose }: BubbleGameProps) {
   const coinsEarned   = Math.max(1, Math.floor(scoreRef.current / 3));
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, { paddingTop: insets.top }]}>
       <Text style={styles.gameTitle}>Balon Patlatma 🫧</Text>
       <Text style={styles.gameSubtitle}>
         Yükselen balonlara dokun!{' '}

@@ -2,6 +2,7 @@
 import * as Haptics from 'expo-haptics';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Need = 'water' | 'sun' | 'soil';
 
@@ -30,6 +31,7 @@ const TIME_DECREASE_PER_ROUND = 70;   // tur başına kısalma
 const MAX_LIVES = 3;
 
 export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
+  const insets = useSafeAreaInsets();
   const [currentNeed, setCurrentNeed] = useState<Need>('water');
   const [round, setRound] = useState(1);
   const [score, setScore] = useState(0);
@@ -180,7 +182,7 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
     progress > 0.6 ? '#22C55E' : progress > 0.3 ? '#FBBF24' : '#EF4444';
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, { paddingTop: insets.top }]}>
       <Text style={styles.gameTitle}>Refleks Oyunu ⚡</Text>
       <Text style={styles.gameSubtitle}>
         Doğru ihtiyaca <Text style={{ fontWeight: '700' }}>hızlıca</Text> dokun.
