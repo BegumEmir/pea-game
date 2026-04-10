@@ -257,6 +257,7 @@ export default function BubbleGame({ onFinished, onClose }: BubbleGameProps) {
 
 const styles = StyleSheet.create({
   wrapper: {
+    flex: 1,
     width: '100%',
     alignItems: 'center',
   },
@@ -317,8 +318,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   playArea: {
+    flex: 1,
     width: '100%',
-    height: 220,
     backgroundColor: '#F3F4F6',
     borderRadius: 16,
     overflow: 'hidden',
@@ -343,8 +344,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   gameOverCard: {
+    flex: 1,
     width: '100%',
-    height: 220,
     backgroundColor: '#F3F4F6',
     borderRadius: 16,
     alignItems: 'center',

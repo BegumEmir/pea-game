@@ -267,6 +267,7 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
 
 const styles = StyleSheet.create({
   wrapper: {
+    flex: 1,
     width: '100%',
     alignItems: 'center',
   },
