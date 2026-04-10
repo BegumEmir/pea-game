@@ -110,7 +110,7 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
 
     // Doğru cevabı göster
     setFlashNeed(currentNeedRef.current);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
 
     const newLives = livesRef.current - 1;
     livesRef.current = newLives;
@@ -138,7 +138,7 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
 
     if (need === currentNeed) {
       // DOĞRU
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       setScore(s => s + 1);
       setStatusText('Doğru! ✨');
 
@@ -147,7 +147,7 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
       }, 300);
     } else {
       // YANLIŞ — doğru cevabı göster
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       setStatusText('Yanlış seçim! ❌');
       setFlashNeed(currentNeed);
 

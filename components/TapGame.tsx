@@ -40,7 +40,7 @@ export default function TapGame({
   const handleTap = () => {
     if (timeLeft <= 0) return;
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 
     // Tıklama geri bildirimi: büz ve geri zıpla
     Animated.sequence([
@@ -117,6 +117,7 @@ export default function TapGame({
 
 const styles = StyleSheet.create({
   container: {
+    width: '100%',
     alignItems: 'center',
   },
   gameTitle: {
