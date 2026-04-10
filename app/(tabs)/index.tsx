@@ -217,7 +217,8 @@ export default function HomeScreen() {
       {/* Oyunlar overlay — Modal ile tam ekran, status bar dahil */}
       <Modal
         visible={isGameOpen}
-        transparent
+        transparent={false}
+        presentationStyle="fullScreen"
         animationType="fade"
         statusBarTranslucent
         onRequestClose={() => { setIsGameOpen(false); setGameMode(null); }}
@@ -485,7 +486,7 @@ const styles = StyleSheet.create({
   },
   gameOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15,23,42,0.75)',
+    backgroundColor: '#0F172A',
     alignItems: 'center',
     justifyContent: 'center',
   },
