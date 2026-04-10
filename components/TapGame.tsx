@@ -1,11 +1,12 @@
 // components/TapGame.tsx
+import * as Haptics from 'expo-haptics';
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type TapGameProps = {
   durationSeconds: number;          // toplam süre (15 sn)
   onFinished: (score: number) => void; // oyun bittiğinde skor
-  onClose: () => void;              // overlay’i kapat
+  onClose: () => void;              // overlay'i kapat
   onTap?: () => void;               // her tıklamada opsiyonel callback (Pea zıplatsın)
 };
 
@@ -19,11 +20,11 @@ export default function TapGame({
   const [score, setScore] = useState(0);
   // Ref so onFinished always receives the true latest count, not a render-cycle snapshot
   const scoreRef = useRef(0);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  // ⏱ Geri sayım – sadece burası timeLeft’i değiştiriyor
+  // ⏱ Geri sayım – sadece burası timeLeft'i değiştiriyor
   useEffect(() => {
     if (timeLeft <= 0) {
-      // süre bitince otomatik bitir
       onFinished(scoreRef.current);
       onClose();
       return;
@@ -37,18 +38,38 @@ export default function TapGame({
   }, [timeLeft]);
 
   const handleTap = () => {
-    if (timeLeft <= 0) return; // süre bittiyse tıklama sayma
+    if (timeLeft <= 0) return;
 
-    scoreRef.current += 1;     // ref güncelle (render beklemiyor)
-    setScore(s => s + 1);      // state güncelle (UI için)
-    onTap?.();                 // Pea zıpla animasyonu
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Tıklama geri bildirimi: büz ve geri zıpla
+    Animated.sequence([
+      Animated.spring(scaleAnim, {
+        toValue: 0.85,
+        useNativeDriver: true,
+        tension: 300,
+        friction: 5,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 200,
+        friction: 6,
+      }),
+    ]).start();
+
+    scoreRef.current += 1;
+    setScore(s => s + 1);
+    onTap?.();
   };
 
   const handleExit = () => {
-    // erken çıkarsa da skoru gönder, overlay’i kapat
     onFinished(scoreRef.current);
     onClose();
   };
+
+  const isUrgent = timeLeft <= 5;
+  const timerProgress = durationSeconds > 0 ? timeLeft / durationSeconds : 0;
 
   return (
     <View style={styles.container}>
@@ -57,12 +78,33 @@ export default function TapGame({
         {durationSeconds} saniye içinde olabildiğince çok tıkla!
       </Text>
 
-      <Text style={styles.gameInfo}>Kalan süre: {timeLeft} sn</Text>
+      {/* Görsel zamanlayıcı */}
+      <View style={styles.timerBarBackground}>
+        <View
+          style={[
+            styles.timerBarFill,
+            {
+              width: `${timerProgress * 100}%`,
+              backgroundColor: isUrgent ? '#EF4444' : '#22C55E',
+            },
+          ]}
+        />
+      </View>
+      <Text style={[styles.timerText, isUrgent && styles.timerTextUrgent]}>
+        {timeLeft} sn
+      </Text>
+
       <Text style={styles.gameInfo}>Skor: {score}</Text>
 
-      <TouchableOpacity style={styles.gameTapArea} onPress={handleTap}>
-        <Text style={styles.gameTapText}>Tıkla! 💚</Text>
-      </TouchableOpacity>
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <TouchableOpacity
+          style={[styles.gameTapArea, isUrgent && styles.gameTapAreaUrgent]}
+          onPress={handleTap}
+          activeOpacity={1}
+        >
+          <Text style={styles.gameTapText}>{isUrgent ? 'Hızlı! 🔥' : 'Tıkla! 💚'}</Text>
+        </TouchableOpacity>
+      </Animated.View>
 
       <TouchableOpacity style={styles.gameExitButton} onPress={handleExit}>
         <Text style={styles.gameExitText}>
@@ -89,6 +131,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 12,
   },
+  timerBarBackground: {
+    width: '80%',
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: '#E5E7EB',
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  timerBarFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  timerText: {
+    fontSize: 14,
+    color: '#111827',
+    marginBottom: 4,
+  },
+  timerTextUrgent: {
+    color: '#EF4444',
+    fontWeight: '700',
+  },
   gameInfo: {
     fontSize: 14,
     color: '#111827',
@@ -107,6 +170,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 10,
     elevation: 6,
+  },
+  gameTapAreaUrgent: {
+    backgroundColor: '#EF4444',
+    shadowColor: '#DC2626',
   },
   gameTapText: {
     fontSize: 20,

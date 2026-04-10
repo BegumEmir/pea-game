@@ -1,4 +1,5 @@
 // components/ReflexGame.tsx
+import * as Haptics from 'expo-haptics';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
@@ -14,6 +15,13 @@ const NEEDS: { key: Need; label: string; emoji: string }[] = [
   { key: 'sun', label: 'Güneş', emoji: '☀️' },
   { key: 'soil', label: 'Toprak', emoji: '🌱' },
 ];
+
+// Her ihtiyacın rengi
+const NEED_COLORS: Record<Need, { bg: string; text: string }> = {
+  water: { bg: '#DBEAFE', text: '#1D4ED8' },
+  sun:   { bg: '#FEF9C3', text: '#92400E' },
+  soil:  { bg: '#D1FAE5', text: '#166534' },
+};
 
 // Oyun ayarları
 const INITIAL_TIME_MS = 1600;          // 1. tur zamanı
@@ -33,11 +41,14 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
     'Doğru ihtiyacı hızlı seç, süre bitmeden dokun! ⚡'
   );
   const [gameOver, setGameOver] = useState(false);
+  // Doğru cevabı yanlış/süre dolduğunda kısa süre parlatmak için
+  const [flashNeed, setFlashNeed] = useState<Need | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Refs mirror state so interval callbacks can read/write current values without stale closures
   const timeLeftMsRef = useRef(INITIAL_TIME_MS);
   const livesRef = useRef(MAX_LIVES);
+  const currentNeedRef = useRef<Need>('water');
 
   const hearts = '❤️'.repeat(lives) + '🤍'.repeat(MAX_LIVES - lives);
 
@@ -58,7 +69,11 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
     setRoundTimeMs(thisRoundTime);
     setTimeLeftMs(thisRoundTime);
     timeLeftMsRef.current = thisRoundTime;
-    setCurrentNeed(randomNeed());
+
+    const newNeed = randomNeed();
+    setCurrentNeed(newNeed);
+    currentNeedRef.current = newNeed;
+
     setIsActive(true);
     setStatusText('Doğru ihtiyacı hızlı seç! ⚡');
 
@@ -93,17 +108,22 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
     setIsActive(false);
     setStatusText('Süre bitti! ⏰');
 
+    // Doğru cevabı göster
+    setFlashNeed(currentNeedRef.current);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
     const newLives = livesRef.current - 1;
     livesRef.current = newLives;
     setLives(newLives);
-    if (newLives <= 0) {
-      setGameOver(true);
-    } else {
-      // biraz bekleyip yeni tura geç
-      setTimeout(() => {
+
+    setTimeout(() => {
+      setFlashNeed(null);
+      if (newLives <= 0) {
+        setGameOver(true);
+      } else {
         setRound(r => r + 1);
-      }, 400);
-    }
+      }
+    }, 600);
   };
 
   const handlePress = (need: Need) => {
@@ -118,6 +138,7 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
 
     if (need === currentNeed) {
       // DOĞRU
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setScore(s => s + 1);
       setStatusText('Doğru! ✨');
 
@@ -125,24 +146,27 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
         setRound(r => r + 1);
       }, 300);
     } else {
-      // YANLIŞ
+      // YANLIŞ — doğru cevabı göster
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setStatusText('Yanlış seçim! ❌');
+      setFlashNeed(currentNeed);
 
       const newLives = livesRef.current - 1;
       livesRef.current = newLives;
       setLives(newLives);
-      if (newLives <= 0) {
-        setGameOver(true);
-      } else {
-        setTimeout(() => {
+
+      setTimeout(() => {
+        setFlashNeed(null);
+        if (newLives <= 0) {
+          setGameOver(true);
+        } else {
           setRound(r => r + 1);
-        }, 400);
-      }
+        }
+      }, 600);
     }
   };
 
   const handleExit = () => {
-    // Skoru ana ekrana bildir
     onFinished(score);
     onClose();
   };
@@ -150,6 +174,10 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
   const currentNeedMeta = NEEDS.find(n => n.key === currentNeed) ?? NEEDS[0];
   const progress =
     roundTimeMs > 0 ? Math.max(0, timeLeftMs / roundTimeMs) : 0;
+
+  // Zamanlayıcı rengi: yeşil → sarı → kırmızı
+  const timerBarColor =
+    progress > 0.6 ? '#22C55E' : progress > 0.3 ? '#FBBF24' : '#EF4444';
 
   return (
     <View style={styles.wrapper}>
@@ -166,12 +194,15 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
 
       <Text style={styles.livesText}>{hearts}</Text>
 
-      {/* Zaman barı */}
+      {/* Zaman barı — yeşil→sarı→kırmızı */}
       <View style={styles.timerBarBackground}>
         <View
           style={[
             styles.timerBarFill,
-            { width: `${progress * 100}%` },
+            {
+              width: `${progress * 100}%`,
+              backgroundColor: timerBarColor,
+            },
           ]}
         />
       </View>
@@ -185,19 +216,33 @@ export default function ReflexGame({ onClose, onFinished }: ReflexGameProps) {
 
       <Text style={styles.statusText}>{statusText}</Text>
 
-      {/* Butonlar */}
+      {/* Butonlar — her ihtiyacın kendi rengi var */}
       <View style={styles.buttonsRowBig}>
-        {NEEDS.map(n => (
-          <TouchableOpacity
-            key={n.key}
-            style={styles.needButton}
-            onPress={() => handlePress(n.key)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.needButtonEmoji}>{n.emoji}</Text>
-            <Text style={styles.needButtonLabel}>{n.label}</Text>
-          </TouchableOpacity>
-        ))}
+        {NEEDS.map(n => {
+          const isFlashing = flashNeed === n.key;
+          const bgColor = isFlashing
+            ? '#4ADE80'
+            : isActive
+              ? NEED_COLORS[n.key].bg
+              : '#E5E7EB';
+          const textColor = isFlashing
+            ? '#166534'
+            : isActive
+              ? NEED_COLORS[n.key].text
+              : '#111827';
+
+          return (
+            <TouchableOpacity
+              key={n.key}
+              style={[styles.needButton, { backgroundColor: bgColor }]}
+              onPress={() => handlePress(n.key)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.needButtonEmoji}>{n.emoji}</Text>
+              <Text style={[styles.needButtonLabel, { color: textColor }]}>{n.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <View style={styles.bottomButtons}>
@@ -265,13 +310,12 @@ const styles = StyleSheet.create({
   timerBarFill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: '#F97316', // turuncu gibi
   },
   needBubble: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#DCFCE7',
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
@@ -286,7 +330,7 @@ const styles = StyleSheet.create({
   },
   needHighlight: {
     fontWeight: '700',
-    color: '#4F46E5',
+    color: '#16A34A',
   },
   statusText: {
     fontSize: 13,
@@ -306,7 +350,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     paddingVertical: 10,
     borderRadius: 16,
-    backgroundColor: '#E5E7EB',
     alignItems: 'center',
   },
   needButtonEmoji: {
@@ -316,7 +359,6 @@ const styles = StyleSheet.create({
   needButtonLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#111827',
   },
   bottomButtons: {
     width: '86%',
