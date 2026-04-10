@@ -135,7 +135,8 @@ export default function HomeScreen() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor }]}>
+    <View style={[styles.screenWrapper, { backgroundColor }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor }]}>
       {/* ANA İÇERİK */}
       <View style={[styles.mainContent, isGameOpen && { opacity: 0.15 }]}>
         {/* Üst bar: başlık + coin */}
@@ -210,8 +211,9 @@ export default function HomeScreen() {
           />
         </View>
       </View>
+      </SafeAreaView>
 
-      {/* Oyunlar overlay */}
+      {/* Oyunlar overlay — SafeAreaView dışında, tam ekran kaplar */}
       {isGameOpen && (
         <View style={styles.gameOverlay}>
           <View
@@ -335,7 +337,7 @@ export default function HomeScreen() {
           </View>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -388,6 +390,9 @@ function ActionButton({ label, onPress }: ActionButtonProps) {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  screenWrapper: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: '#EFF8FF',
@@ -480,6 +485,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    zIndex: 999,
     backgroundColor: 'rgba(15,23,42,0.75)',
     alignItems: 'center',
     justifyContent: 'center',
