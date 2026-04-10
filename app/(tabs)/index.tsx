@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   SafeAreaView,
+  Modal,
   View,
   Text,
   StyleSheet,
@@ -135,10 +136,10 @@ export default function HomeScreen() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <View style={[styles.screenWrapper, { backgroundColor }]}>
+    <>
       <SafeAreaView style={[styles.container, { backgroundColor }]}>
       {/* ANA İÇERİK */}
-      <View style={[styles.mainContent, isGameOpen && { opacity: 0.15 }]}>
+      <View style={styles.mainContent}>
         {/* Üst bar: başlık + coin */}
         <View style={styles.topBar}>
           <Text style={styles.title}>Pea • Sanal Bezelye</Text>
@@ -213,8 +214,14 @@ export default function HomeScreen() {
       </View>
       </SafeAreaView>
 
-      {/* Oyunlar overlay — SafeAreaView dışında, tam ekran kaplar */}
-      {isGameOpen && (
+      {/* Oyunlar overlay — Modal ile tam ekran, status bar dahil */}
+      <Modal
+        visible={isGameOpen}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => { setIsGameOpen(false); setGameMode(null); }}
+      >
         <View style={styles.gameOverlay}>
           <View
             style={[
@@ -336,8 +343,9 @@ export default function HomeScreen() {
             )}
           </View>
         </View>
-      )}
-    </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -390,9 +398,6 @@ function ActionButton({ label, onPress }: ActionButtonProps) {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  screenWrapper: {
-    flex: 1,
-  },
   container: {
     flex: 1,
     backgroundColor: '#EFF8FF',
@@ -480,12 +485,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   gameOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 999,
+    flex: 1,
     backgroundColor: 'rgba(15,23,42,0.75)',
     alignItems: 'center',
     justifyContent: 'center',
