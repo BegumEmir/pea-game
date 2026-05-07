@@ -89,15 +89,6 @@ function clamp(value: number) {
   return Math.max(0, Math.min(100, value));
 }
 
-function formatSleepDuration(ms: number): string {
-  const totalSecs = Math.floor(ms / 1000);
-  if (totalSecs < 60) return `${totalSecs} saniye`;
-  const mins = Math.floor(totalSecs / 60);
-  const secs = totalSecs % 60;
-  if (secs === 0) return `${mins} dakika`;
-  return `${mins} dakika ${secs} saniye`;
-}
-
 // Energy gained for manual sleep, keyed by duration tier
 // Tiers: <1 min, 1–3 min, 3–10 min, >10 min
 const MANUAL_SLEEP_TIERS = [
@@ -219,21 +210,21 @@ export function usePea(isGameOpen: boolean) {
 
     if (sleepReason === 'manual') {
       if (!early) return; // auto-wake must never fire for manual sleep
-      const tier  = MANUAL_SLEEP_TIERS.find(t => elapsed < t.maxMs) ?? MANUAL_SLEEP_TIERS[MANUAL_SLEEP_TIERS.length - 1];
-      const durStr = formatSleepDuration(elapsed);
+      const tier      = MANUAL_SLEEP_TIERS.find(t => elapsed < t.maxMs) ?? MANUAL_SLEEP_TIERS[MANUAL_SLEEP_TIERS.length - 1];
       const newEnergy = clamp(energy + tier.energyGain);
+      const actualGain = newEnergy - energy;
       const newFun    = tier.funChange !== 0 ? clamp(fun + tier.funChange) : fun;
       const newWater  = clamp(water + 5);
 
       let msg: string;
-      if (elapsed < 60_000) {
-        msg = `${durStr} uyudu, hâlâ yorgun görünüyor 😴`;
-      } else if (elapsed < 3 * 60_000) {
-        msg = `Kısa bir şekerleme yaptı (${durStr}) 😊`;
-      } else if (elapsed < 10 * 60_000) {
-        msg = `İyi uyudu (${durStr}), kendini iyi hissediyor! 🌟`;
+      if (actualGain <= 0) {
+        msg = 'Zaten dinlenmişti, enerjisi doluydu! ⚡';
+      } else if (actualGain < 5) {
+        msg = `Kısa bir şekerleme yaptı, +${actualGain} enerji geldi 😊`;
+      } else if (actualGain < 12) {
+        msg = `Güzel uyudu, +${actualGain} enerji kazandı! 🌟`;
       } else {
-        msg = `Çok uzun uyudu (${durStr}), biraz sersem 😵`;
+        msg = `Harika bir uyku! +${actualGain} enerji kazandı! 🌟`;
       }
 
       setEnergy(newEnergy);

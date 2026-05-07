@@ -235,30 +235,23 @@ export default function HomeScreen() {
 
   const handleShare = async () => {
     try {
-      // Guard: ref must be mounted before capture
-      console.log('[Share] cardRef.current:', cardRef.current ? 'set' : 'null');
       if (!cardRef.current) {
         Alert.alert('Hata', 'Kart henüz yüklenmedi, lütfen tekrar dene.');
         return;
       }
 
-      console.log('[Share] calling captureRef...');
       const uri = await captureRef(cardRef, { format: 'png', quality: 1 });
-      console.log('[Share] captured URI:', uri);
 
       const canShare = await Sharing.isAvailableAsync();
-      console.log('[Share] isAvailable:', canShare);
       if (!canShare) {
         Alert.alert('Paylaşım kullanılamıyor', 'Bu cihaz paylaşımı desteklemiyor.');
         return;
       }
 
-      // Share the tmpfile URI directly — no FileSystem copy needed
       await Sharing.shareAsync(uri, {
         mimeType: 'image/png',
         dialogTitle: 'Pea Kartını Paylaş',
       });
-      console.log('[Share] done');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('[Share] error:', msg);
@@ -1497,36 +1490,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-  statsButton: {
-    backgroundColor: '#15803D',
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 999,
-    marginHorizontal: 4,
-    marginVertical: 4,
-  },
-  statsButtonText: {
-    color: '#F0FDF4',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  questsButton: {
-    backgroundColor: '#16A34A',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 999,
-    marginHorizontal: 4,
-    marginVertical: 4,
-  },
-  questsButtonText: {
-    color: '#F0FDF4',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  questsBadge: {
-    color: '#BBF7D0',
-    fontWeight: '700',
-  },
   topBar: {
     width: '100%',
     paddingHorizontal: 24,
@@ -1891,23 +1854,6 @@ const styles = StyleSheet.create({
     color: '#F0FDF4',
   },
   // ── Achievements ───────────────────────────────────────────────────────────
-  achievementsButton: {
-    backgroundColor: '#D97706',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 999,
-    marginHorizontal: 4,
-    marginVertical: 4,
-  },
-  achievementsButtonText: {
-    color: '#FFFBEB',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  achievementsBadgeCount: {
-    color: '#FEF3C7',
-    fontWeight: '700',
-  },
   badgeModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -1968,19 +1914,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   // ── Share ──────────────────────────────────────────────────────────────────
-  shareButton: {
-    backgroundColor: '#059669',
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 999,
-    marginHorizontal: 4,
-    marginVertical: 4,
-  },
-  shareButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
   shareOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.78)',
