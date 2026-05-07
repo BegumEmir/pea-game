@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -6,6 +7,7 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   Image,
+  ImageSourcePropType,
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,11 +16,12 @@ type FlappyPipe = {
   id: number;
   x: number;
   gapCenter: number;
+  gapSize: number;
   passed: boolean;
 };
 
 type FlappyPeaGameProps = {
-  sprite: any;              // Pea görseli
+  sprite: ImageSourcePropType;
   highScore?: number;
   onClose: () => void;      // Oyundan çık
   onFinished: (score: number) => void; // Bittiğinde skor bildir
@@ -49,6 +52,17 @@ function randomGapCenter(): number {
   return Math.random() * 80 - 40;
 }
 
+// Gap shrinks from 150 → 110 over 20 pipes; speed grows by 0.15 per 5 pipes
+function gapSizeForScore(score: number): number {
+  return Math.max(110, FLAPPY_GAP_SIZE - score * 2);
+}
+function pipeSpeedForScore(score: number): number {
+  return FLAPPY_PIPE_SPEED + Math.floor(score / 5) * 0.15;
+}
+function spawnIntervalForScore(score: number): number {
+  return Math.max(1200, 1600 - score * 20);
+}
+
 export default function FlappyPeaGame({
   sprite,
   highScore,
@@ -57,7 +71,9 @@ export default function FlappyPeaGame({
 }: FlappyPeaGameProps) {
   const insets = useSafeAreaInsets();
 
-  const [flappyPeaY, setFlappyPeaY]         = useState(0);
+  const [flappyPeaY,    setFlappyPeaY]    = useState(0);
+  const [peaRotation,   setPeaRotation]   = useState(0);
+  const prevScoreRef                      = useRef(0);
   const flappyVelRef                          = useRef(0);
   const flappyYRef                            = useRef(0);
 
@@ -73,7 +89,7 @@ export default function FlappyPeaGame({
   const areaHeightRef                         = useRef(FLAPPY_AREA_HEIGHT_DEFAULT);
 
   const [flappyPipes, setFlappyPipes] = useState<FlappyPipe[]>(() => [
-    { id: 0, x: FLAPPY_AREA_WIDTH + 80, gapCenter: randomGapCenter(), passed: false },
+    { id: 0, x: FLAPPY_AREA_WIDTH + 80, gapCenter: randomGapCenter(), gapSize: FLAPPY_GAP_SIZE, passed: false },
   ]);
   const flappyPipeIdRef = useRef(1);
 
@@ -117,6 +133,9 @@ export default function FlappyPeaGame({
           }
 
           setFlappyPeaY(flappyYRef.current);
+          // Tilt: nose-up on jump (vel < 0), nose-down on fall (vel > 0)
+          const tilt = Math.max(-25, Math.min(65, flappyVelRef.current * 4.5));
+          setPeaRotation(tilt);
         }
 
         const peaCenterY = areaHeightRef.current / 2 + flappyYRef.current;
@@ -129,14 +148,15 @@ export default function FlappyPeaGame({
 
           let newScore = flappyScoreRef.current;
           let gameOver = flappyGameOverRef.current;
+          const dynSpeed = pipeSpeedForScore(newScore);
 
           const updated = prev
             .map(pipe => {
-              const newX      = pipe.x - FLAPPY_PIPE_SPEED * delta;
+              const newX      = pipe.x - dynSpeed * delta;
               const gapCenter = pipe.gapCenter;
               const h         = areaHeightRef.current;
-              const gapTop    = h / 2 + gapCenter - FLAPPY_GAP_SIZE / 2;
-              const gapBottom = h / 2 + gapCenter + FLAPPY_GAP_SIZE / 2;
+              const gapTop    = h / 2 + gapCenter - pipe.gapSize / 2;
+              const gapBottom = h / 2 + gapCenter + pipe.gapSize / 2;
               const pipeLeft  = newX;
               const pipeRight = newX + FLAPPY_PIPE_WIDTH;
 
@@ -182,24 +202,44 @@ export default function FlappyPeaGame({
     return () => cancelAnimationFrame(rafId);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Boru spawn
+  // Boru spawn — recursive setTimeout so the interval shrinks as score grows
   useEffect(() => {
     if (!flappyStarted || flappyGameOver) return;
 
-    const spawnId = setInterval(() => {
+    let timerId: ReturnType<typeof setTimeout>;
+
+    const spawn = () => {
       setFlappyPipes(prev => [
         ...prev,
         {
-          id: flappyPipeIdRef.current++,
-          x: FLAPPY_AREA_WIDTH + 20,
+          id:        flappyPipeIdRef.current++,
+          x:         FLAPPY_AREA_WIDTH + 20,
           gapCenter: randomGapCenter(),
-          passed: false,
+          gapSize:   gapSizeForScore(flappyScoreRef.current),
+          passed:    false,
         },
       ]);
-    }, 1600);
+      timerId = setTimeout(spawn, spawnIntervalForScore(flappyScoreRef.current));
+    };
 
-    return () => clearInterval(spawnId);
+    timerId = setTimeout(spawn, spawnIntervalForScore(flappyScoreRef.current));
+    return () => clearTimeout(timerId);
   }, [flappyStarted, flappyGameOver]);
+
+  // Haptic on each pipe passed
+  useEffect(() => {
+    if (flappyScore > prevScoreRef.current) {
+      prevScoreRef.current = flappyScore;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+  }, [flappyScore]);
+
+  // Haptic on death
+  useEffect(() => {
+    if (flappyGameOver) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+    }
+  }, [flappyGameOver]);
 
   const flap = () => {
     if (flappyGameOver) return;
@@ -209,18 +249,21 @@ export default function FlappyPeaGame({
 
   const restartFlappy = () => {
     flappyScoreRef.current = 0;
+    prevScoreRef.current   = 0;
     setFlappyScore(0);
     setFlappyGameOver(false);
     setFlappyStarted(false);
     flappyVelRef.current = 0;
     flappyYRef.current   = 0;
     setFlappyPeaY(0);
+    setPeaRotation(0);
     setFlappyPipes([
       {
-        id: flappyPipeIdRef.current++,
-        x: FLAPPY_AREA_WIDTH + 80,
+        id:        flappyPipeIdRef.current++,
+        x:         FLAPPY_AREA_WIDTH + 80,
         gapCenter: randomGapCenter(),
-        passed: false,
+        gapSize:   FLAPPY_GAP_SIZE,
+        passed:    false,
       },
     ]);
   };
@@ -260,27 +303,30 @@ export default function FlappyPeaGame({
           <View style={styles.flappySky}>
             {/* Borular */}
             {flappyPipes.map(pipe => {
-              const gapTop    = areaHeight / 2 + pipe.gapCenter - FLAPPY_GAP_SIZE / 2;
-              const gapBottom = areaHeight / 2 + pipe.gapCenter + FLAPPY_GAP_SIZE / 2;
+              const gapTop    = areaHeight / 2 + pipe.gapCenter - pipe.gapSize / 2;
+              const gapBottom = areaHeight / 2 + pipe.gapCenter + pipe.gapSize / 2;
               const topHeight    = Math.max(0, gapTop);
               const bottomHeight = Math.max(0, areaHeight - gapBottom);
 
               return (
                 <View key={pipe.id} style={[styles.flappyPipe, { left: pipe.x }]}>
                   <View style={[styles.flappyPipeSegment, { height: topHeight }]} />
-                  <View style={{ height: FLAPPY_GAP_SIZE }} />
+                  <View style={{ height: pipe.gapSize }} />
                   <View style={[styles.flappyPipeSegment, { height: bottomHeight }]} />
                 </View>
               );
             })}
 
-            {/* Pea — top is dynamic so must be inline */}
+            {/* Pea — top is dynamic so must be inline; rotates with velocity */}
             <View
               style={[
                 styles.flappyPea,
                 {
                   top: areaHeight / 2 - FLAPPY_PEA_SIZE / 2,
-                  transform: [{ translateY: flappyPeaY }],
+                  transform: [
+                    { translateY: flappyPeaY },
+                    { rotate: `${peaRotation}deg` },
+                  ],
                 },
               ]}
             >

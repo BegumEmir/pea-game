@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -214,9 +215,9 @@ export default function HomeScreen() {
 
   // ── Action wrappers — add visual effects on top of hook logic ───────────────
 
-  const giveWater = () => { spawnParticle('water'); pea.giveWater(); bouncePea(); quests.trackWater(); };
-  const giveSun   = () => { spawnParticle('sun');   pea.giveSun();   bouncePea(); quests.trackSun(); };
-  const giveSoil  = () => { spawnParticle('soil');  pea.giveSoil();  bouncePea(); quests.trackSoil(); };
+  const giveWater = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); spawnParticle('water'); pea.giveWater(); bouncePea(); quests.trackWater(); };
+  const giveSun   = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); spawnParticle('sun');   pea.giveSun();   bouncePea(); quests.trackSun(); };
+  const giveSoil  = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); spawnParticle('soil');  pea.giveSoil();  bouncePea(); quests.trackSoil(); };
 
   const play = () => {
     if (!pea.tryPlay()) return;
