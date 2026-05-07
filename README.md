@@ -1,220 +1,307 @@
-# Pea • Virtual Pea Companion 🌱
+<div align="center">
 
-**Pea** is a small virtual plant companion built with React Native & Expo.  
-You take care of a cute pea by giving it water, sun and soil, letting it sleep, and playing mini–games together.  
-Over time, Pea's stats change and its mood reacts to how well you care for it.
+# 🌿 Pea Game
 
-> This is a learning / hobby project to explore React Native, Expo and simple game mechanics.
+**[Türkçe](#-türkçe)** &nbsp;|&nbsp; **[English](#-english)**
 
----
+Sanal bezelyeni büyüt, besle, oynasın ve her gün ona bak!  
+*A virtual pet tamagotchi built with React Native & Expo.*
 
-## Features
+<br/>
 
-### 🪴 Pea as a Tamagotchi-style companion
+[![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android-brightgreen?style=flat-square)](https://expo.dev/)
+[![Expo SDK](https://img.shields.io/badge/Expo-SDK%2053-000000?style=flat-square&logo=expo)](https://expo.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![React Native](https://img.shields.io/badge/React%20Native-0.79-61dafb?style=flat-square&logo=react)](https://reactnative.dev/)
+[![License](https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square)](./LICENSE)
 
-Pea has several stats:
-
-- **Water**
-- **Sun**
-- **Soil**
-- **Fun**
-- **Energy**
-
-Based on these stats, Pea's **mood** changes:
-
-- `happy`
-- `thirsty`
-- `needsSun`
-- `needsSoil`
-- `sleepy`
-- `bored`
-- `playing`
-
-The UI shows a different sprite for each mood (happy / thirsty / sleepy, etc.).
-
-### ⏱ Time-based stat changes
-
-- Every few seconds, **water / sun / soil / fun / energy slowly decrease**.
-- If the app was closed for a while (e.g. more than X minutes), when you come back:
-  - Some stats are reduced a bit,
-  - Pea may be **sleeping** because it waited too long,
-  - A custom message explains what happened.
-
-### 😴 Sleep system
-
-Pea can **sleep** for different reasons:
-
-- **Manual sleep**: user sends Pea to sleep.
-- **Tired from play**: mini-games consume energy; if it gets too low, Pea falls asleep.
-- **Long away**: if the user doesn’t open the app for a while, Pea is sleeping when they return.
-
-Sleep includes:
-
-- A small **countdown** for short naps,
-- Different messages depending on whether you wake Pea up early or let it rest fully.
-
-### 🎮 Mini–games
-
-There is a **Games** overlay with multiple mini–games that affect Pea's stats.
-
-#### 1. Tap Game 💚
-
-- You get **15 seconds** to tap as fast as you can.
-- Every tap:
-  - Increases **score**,
-  - Optionally triggers a small “bounce” animation on Pea.
-- When the timer ends:
-  - Pea gains **Fun**,
-  - Pea loses some **Energy**,
-  - If Energy gets too low, Pea may fall asleep.
-
-#### 2. Flappy Pea 🪽
-
-- A Flappy Bird–style mini–game:
-  - Tap to make Pea jump,
-  - Pass through gaps between pipes,
-  - Avoid hitting pipes or the ground.
-- The game tracks:
-  - **Current score** (how many pipes you pass),
-  - **Best score (high score)** stored in `AsyncStorage`.
-- Finishing the game:
-  - Increases **Fun**,
-  - Decreases **Energy**,
-  - Shows a special message if you set a **new high score**.
-
-#### 3. Reflex Game ⚡
-
-- A reaction/attention mini–game:
-  - Pea asks for something (e.g. one of a few options),
-  - You must tap the correct option **before the time runs out**.
-- Each round:
-  - Gets slightly harder / faster,
-  - Rewards Fun and costs a bit of Energy.
-
-### ✨ Small polish
-
-- Giving **water / sun / soil** shows **0.5 s emoji particles**:
-  - 💧 for water
-  - ☀️ for sun
-  - 🌱 for soil
-- Pea has a scale/bounce animation based on **Energy** and interactions.
-- Background color changes depending on mood (sleepy / bored / sunny etc.).
-
-### 🧪 Developer Panel (optional)
-
-There is a small **Dev panel** that can be toggled:
-
-- Shows **Water / Sun / Soil / Fun / Energy** numeric values.
-- Toggled via a “Show / Hide dev panel” text button.
-- Useful while tuning the game balance.
+</div>
 
 ---
 
-## Tech Stack
+## 📸 Ekran Görüntüleri / Screenshots
 
-This project is built with:
+<p align="center">
+  <em>Yakında eklenecek &nbsp;/&nbsp; Coming soon</em>
+</p>
 
-- **React Native** (via Expo)
-- **Expo** (managed workflow)
-- **TypeScript**
-- **expo-router** for navigation (`app/(tabs)/index.tsx`)
-- **@react-native-async-storage/async-storage**
-  - Stores:
-    - Last visit timestamp (`PEA_LAST_VISIT`)
-    - Flappy Pea high score (`PEA_FLAPPY_HIGHSCORE`)
+<!--
+<p align="center">
+  <img src="./assets/screenshots/home.png"         width="19%" alt="Ana ekran" />
+  <img src="./assets/screenshots/games.png"        width="19%" alt="Oyun menüsü" />
+  <img src="./assets/screenshots/shop.png"         width="19%" alt="Dükkan" />
+  <img src="./assets/screenshots/quests.png"       width="19%" alt="Görevler" />
+  <img src="./assets/screenshots/achievements.png" width="19%" alt="Rozetler" />
+</p>
+-->
 
 ---
 
-## Project Structure (simplified)
+## 🇹🇷 Türkçe
 
-```text
-pea-game/
-  app/
-    (tabs)/
-      index.tsx        # Main Pea screen (stats, mood, games overlay)
-  components/
-    TapGame.tsx        # 15-second tap mini-game
-    FlappyPeaGame.tsx  # Flappy Bird style mini-game
-    ReflexGame.tsx     # Reflex / reaction mini-game
-  assets/
-    pea/
-      pea_happy.png
-      pea_thirsty.png
-      pea_needs_sun.png
-      pea_needs_soil.png
-      pea_sleepy.png
-      pea_bored.png
-  package.json
-  README.md
-```
+### 📖 Proje Hakkında
 
-## Getting Started
+**Pea Game**, küçük bir bezelyenin sahibi olduğun sevimli bir Tamagotchi uygulamasıdır.  
+Bezelyeni her gün sula, güneşe çıkar, toprak ver ve birlikte mini oyunlar oyna. İhmal edersen susar, sıkılır ya da uykuya dalar — ama iyi bakılırsa seviyesi yükselir, aksesuarlar kazanır ve arkadaşlarınla paylaşabileceğin özel bir kart oluşturur.
 
-### 1. Requirements
+### ✨ Özellikler
 
-- Node.js & npm (or Yarn)  
-- **Expo CLI** (optional, you can also use `npx expo` directly)  
-- A device/emulator:  
-  - Expo Go app on **Android** or **iOS**, or  
-  - Android Emulator / iOS Simulator  
+#### 🥚 Temel Bakım
+- **5 İstatistik:** Su 💧, Güneş ☀️, Toprak 🌱, Eğlence 🎮, Enerji ⚡
+- **7 Ruh Hali:** Mutlu, Susuz, Güneş İstiyor, Toprak İstiyor, Uykulu, Oynuyor, Sıkılmış
+- İstatistikler zamanla azalır; üst düzey bakım enerjinin yenilenmesini sağlar
+- İsim özelleştirme — bezelyene istediğin ismi ver ✏️
 
-### 2. Install dependencies
+#### 😴 Uyku Sistemi
+- **Manuel uyutma** — istediğinde uyut, uyandır
+- **Yorgunluktan uyuma** — oyun sonrası enerji çok düşünce otomatik uyur, 2 dk sonra kalkar
+- **Uzun ayrılık uykusu** — uygulamayı 30+ dakika açmadıysan Pea uyumuştur
+- **Çevrimdışı enerji hesaplama** — uygulama kapalıyken uyuyan Pea enerji kazanmaya devam eder (5 saniye = 1 enerji)
+
+#### 🎮 Mini Oyunlar
+
+| Oyun | Süre | Açıklama |
+|------|------|----------|
+| Böcek Yakala 🪰 | 30 sn | Uçan böceklere dokun; arı 3 puan ama hızlı! |
+| Hafıza Oyunu 🃏 | Süresiz | 4×4 kartları çevir, eşleşen çiftleri bul |
+| Flappy Pea 🪽 | Süresiz | Boruların arasından geç; skor arttıkça güçleşir |
+| Coin Yağmuru 💰 | 30 sn | Sol/sağ dok, coin topla, kaktüslerden kaçın |
+| Bahçe Bakımı 🌿 | 45 sn | 6 bitkiyi basılı tutarak sula, solar |
+
+#### 🛒 Dükkan
+**Güçlendirmeler**
+- 🌟 XP Boost — 5 dk boyunca 2× XP
+- 💊 Güç Vitamini — tüm statlar +20
+- 💧 Otomatik Su — 10 dk otomatik dolar
+- ⚡ Enerji İçeceği — anında +30 enerji
+- 🍀 Şanslı Kutu — rastgele coin veya XP Boost
+
+**Yiyecekler** (tek kullanımlık stat dolumu)
+- Özel Su, Güneş Kremi, Süper Gübre, Eğlence Paketi
+
+**Kalıcı Aksesuarlar**
+- 🎩 Silindir Şapka · 🌈 Gökkuşağı Aura · ⭐ Altın Çerçeve
+
+#### 📋 Günlük Görevler
+- Her gece yarısı 3 yeni görev oluşur (havuzdan rastgele seçilir)
+- Tamamlandığında otomatik coin + XP ödülü
+- Gece yarısına kalan süre gösterilir
+
+#### 🏅 Rozetler (Başarımlar)
+
+| Rozet | Koşul |
+|-------|-------|
+| 🌱 İlk Adım | İlk oyunu oyna |
+| 🔥 Ateşli | 7 günlük seri |
+| 👑 Kral | Seviye 5'e ulaş |
+| 💰 Zengin | 500 coin kazan |
+| 🎮 Oyun Tutkunu | 50 oyun oyna |
+| 🌿 Bahçıvan | Bahçe oyununu 10 kez oyna |
+| ⚡ Hızlı | Böcek oyununda 20+ puan |
+| 🏆 Şampiyon | Diğer tüm rozetleri kazan |
+
+#### 📊 Diğer
+- **Seviye & XP sistemi** — seviye atladıkça 👑 taç ve ✨ kıvılcımlar belirir
+- **Günlük seri** — 3 / 7 / 14 / 30 günlük ziyarette bonus coin ödülü
+- **İstatistik ekranı** — tüm zamanların oyunları, bakım sayıları, seriler
+- **Pea Kartı** — bezelyenin profil kartını kamera rulonla paylaş 📸
+- **Push bildirimleri** — Pea su, güneş veya oyuna ihtiyaç duyduğunda uyarır
+- **Dokunsal geri bildirim** — her bakım aksiyonunda hafif titreşim
+
+---
+
+## 🇬🇧 English
+
+### 📖 About
+
+**Pea Game** is a Tamagotchi-style virtual pet app where you raise a little pea 🌿.  
+Water it, give it sunshine and soil, let it sleep, and play mini-games together every day. Neglect it and it gets thirsty, bored, or falls asleep — care for it well and it levels up, earns accessories, and generates a shareable profile card.
+
+### ✨ Features
+
+#### 🥚 Core Care
+- **5 Stats:** Water 💧, Sun ☀️, Soil 🌱, Fun 🎮, Energy ⚡
+- **7 Moods:** Happy, Thirsty, Needs Sun, Needs Soil, Sleepy, Playing, Bored
+- Stats decay over time; high-care conditions slowly regenerate energy
+- Name customisation — give your pea any name ✏️
+
+#### 😴 Sleep System
+- **Manual sleep** — put Pea to sleep and wake it when ready
+- **Tired-from-play** — energy collapses after a game; Pea auto-wakes after 2 min
+- **Long-away sleep** — Pea dozes off if the app hasn't been opened in 30+ min
+- **Offline energy calc** — sleeping Pea keeps gaining energy while the app is closed (1 energy per 5 seconds of elapsed time)
+
+#### 🎮 Mini-Games
+
+| Game | Duration | Description |
+|------|----------|-------------|
+| Bug Catch 🪰 | 30 s | Tap flying bugs; bees are 3 pts but fast |
+| Memory Game 🃏 | Untimed | Flip 4×4 cards and find matching pairs |
+| Flappy Pea 🪽 | Untimed | Navigate pipes; gap shrinks and speed rises with score |
+| Coin Rain 💰 | 30 s | Tap left/right, collect coins, dodge cacti |
+| Garden Care 🌿 | 45 s | Hold-press to water 6 plants before they wilt |
+
+#### 🛒 Shop
+**Boosts** — XP Boost (2× for 5 min), Stat Boost (all +20), Auto-Water (10 min), Energy Drink (+30 energy), Lucky Box (random coin or XP Boost)
+
+**Food** (single-use stat refills) — Water pack, Sun cream, Fertiliser, Fun pack
+
+**Permanent Accessories** — 🎩 Top Hat · 🌈 Rainbow Aura · ⭐ Gold Frame
+
+#### 📋 Daily Quests
+- 3 fresh quests generated each midnight from a randomised pool
+- Automatically grants coin + XP rewards on completion
+- Progress persists across app restarts
+
+#### 🏅 Badges (Achievements)
+8 unlockable badges — First Step, Hot Streak, King, Rich, Gamer, Gardener, Speedy, Champion — with unlock date tracking.
+
+#### 📊 More
+- **XP & Level system** — level up to earn a floating 👑 crown and ✨ sparkles
+- **Streak system** — bonus coins at 3 / 7 / 14 / 30-day milestones
+- **Stats screen** — lifetime totals, game high scores, care action counts
+- **Pea Card** — capture and share a styled profile card 📸
+- **Push notifications** — alerts when Pea needs water, sun, or play time
+- **Haptic feedback** — light impact on every care action
+
+---
+
+## 🛠 Tech Stack
+
+| Category | Technology |
+|----------|-----------|
+| Framework | [React Native 0.79](https://reactnative.dev/) + [Expo SDK 53](https://expo.dev/) (Managed Workflow) |
+| Language | [TypeScript 5](https://www.typescriptlang.org/) |
+| Navigation | [Expo Router v4](https://expo.github.io/router/) — file-based routing |
+| Persistence | [@react-native-async-storage/async-storage](https://github.com/react-native-async-storage/async-storage) |
+| Animations | React Native `Animated` API (native driver) |
+| Gradients | [expo-linear-gradient](https://docs.expo.dev/versions/latest/sdk/linear-gradient/) |
+| Haptics | [expo-haptics](https://docs.expo.dev/versions/latest/sdk/haptics/) |
+| Notifications | [expo-notifications](https://docs.expo.dev/versions/latest/sdk/notifications/) |
+| Screenshot / Share | [react-native-view-shot](https://github.com/gre/react-native-view-shot) + [expo-sharing](https://docs.expo.dev/versions/latest/sdk/sharing/) |
+| Safe Area | [react-native-safe-area-context](https://github.com/th3rdwave/react-native-safe-area-context) |
+| Architecture | React New Architecture + React Compiler (both enabled) |
+
+---
+
+## 🚀 Running Locally
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) 18+
+- [Expo Go](https://expo.dev/client) on your iOS or Android device
+
+### Setup
 
 ```bash
-# clone the repo
-git clone https://github.com/<your-username>/pea-game.git
+# 1. Clone
+git clone https://github.com/BegumEmir/pea-game.git
 cd pea-game
 
-# install dependencies
+# 2. Install dependencies
 npm install
-# or
-yarn
+
+# 3. Start dev server
+npm start
 ```
 
-### 3. Run the app
+### Platform shortcuts
 
 ```bash
-# using npx
-npx expo start
-
-# or if you have a script
-npm run start
+npm start          # Start Expo dev server — scan QR with Expo Go
+npm run android    # Open on Android emulator
+npm run ios        # Open on iOS simulator (macOS only)
+npm run web        # Open in browser
+npm run lint       # Run ESLint
 ```
 
-Then:
-
-- Scan the QR code with **Expo Go** on your phone **(same Wi-Fi)**, or  
-- Press `a` to open Android emulator, `i` for iOS simulator (if available).
+> **Note:** Push notifications and haptic feedback require a **physical device** — they are no-ops in simulators.
 
 ---
 
-## How it works (high level)
+## 📁 Project Structure
 
-- All Pea stats (`water`, `sun`, `soil`, `fun`, `energy`) live in the main screen (`index.tsx`) as React state managed via `useState`.  
-- `useEffect` hooks:  
-  - Decrease stats over time,  
-  - Persist / load data from `AsyncStorage`,  
-  - Detect “long away” and trigger a special sleep state.  
-- Mini–games (`TapGame`, `FlappyPeaGame`, `ReflexGame`):  
-  - Are rendered inside a **full-screen overlay**.  
-  - Receive callbacks like `onFinished(score)` to send results back.  
-  - The main screen updates Fun/Energy and mood based on the result.  
-- Mood is derived from stats via a pure function:  
-  - Low water → `thirsty`  
-  - Low sun → `needsSun`  
-  - Low soil → `needsSoil`  
-  - Low energy → `sleepy`  
-  - Low fun → `bored`  
-  - Otherwise → `happy`  
+```
+pea-game/
+├── app/
+│   ├── _layout.tsx              # Root navigator (expo-router Stack)
+│   └── (tabs)/
+│       └── index.tsx            # Main screen — UI, overlays, state wiring
+│
+├── hooks/
+│   ├── usePea.ts                # Core state machine: stats, mood, sleep, XP, coins
+│   ├── useQuests.ts             # Daily quest pool, progress tracking, persistence
+│   ├── useAchievements.ts       # Badge unlock conditions & AsyncStorage sync
+│   ├── useStats.ts              # Lifetime statistics (async writers + read hook)
+│   └── useNotifications.ts      # Permission request & notification scheduling
+│
+├── components/
+│   ├── FlappyPeaGame.tsx        # Flappy Bird-style game (physics loop via setInterval)
+│   ├── BugGame.tsx              # Tap-the-bug game
+│   ├── MemoryGame.tsx           # Card-matching game
+│   ├── CoinGame.tsx             # Coin-rain dodge game
+│   ├── GardenGame.tsx           # Hold-to-water garden game
+│   ├── ShopScreen.tsx           # Tabbed shop (boosts / food / accessories)
+│   ├── StatsScreen.tsx          # Lifetime stats display
+│   ├── QuestsScreen.tsx         # Daily quests list with progress bars
+│   ├── AchievementsScreen.tsx   # Badge collection grid
+│   ├── PeaCard.tsx              # Shareable profile card component
+│   └── NameInputScreen.tsx      # First-launch name picker
+│
+└── assets/
+    ├── pea/                     # Pea sprite PNGs — one per mood state
+    └── images/                  # App icon, splash screen, adaptive icon layers
+```
+
+### Key Architecture Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| **Single state owner** | All Pea stats live in `usePea.ts`; `index.tsx` owns UI overlay state. No global store or Context needed. |
+| **Ref-mirrored intervals** | The 5-second decay loop reads mutable refs instead of closing over state, so the interval is created once and never restarted. |
+| **Offline sleep energy** | `PEA_SLEEP_START` is persisted; on reopen `Math.floor(elapsedMs / 5000)` ticks are applied via a functional `setEnergy` updater to guarantee correct React 18 batching order. |
+| **Single streak source of truth** | `PEA_STREAK_COUNT` is the only streak counter (written by `usePea`). `useStats` reads it directly — eliminates the dual-counter divergence bug. |
+| **Mood as pure function** | `calculateMood(water, sun, soil, fun, energy)` is side-effect-free and called whenever stats change, making mood deterministic and testable. |
 
 ---
 
-## Roadmap / Ideas
+## 🗂 AsyncStorage Keys
 
-Some ideas for future improvements:
+| Key | Value | Description |
+|-----|-------|-------------|
+| `PEA_NAME` | string | Pet name |
+| `PEA_WATER` … `PEA_ENERGY` | 0–100 | Live stat values |
+| `PEA_COINS` | number | Coin balance |
+| `PEA_XP` | number | Cumulative XP |
+| `PEA_SLEEP_REASON` | `'manual'` | Present only while manually sleeping |
+| `PEA_SLEEP_START` | ms timestamp | Sleep start — used for offline energy calc |
+| `PEA_LAST_VISIT` | ms timestamp | Detects long-away (> 30 min) |
+| `PEA_STREAK_COUNT` | number | Current daily login streak |
+| `PEA_STREAK_DATE` | `YYYY-MM-DD` | Date streak was last incremented |
+| `PEA_FLAPPY_HIGHSCORE` | number | Flappy Pea personal best |
+| `PEA_ACCESSORIES` | JSON array | Owned accessory IDs |
+| `PEA_XP_BOOST_EXPIRY` | ms timestamp | Active XP boost expiry (0 = none) |
+| `PEA_AUTO_WATER_EXPIRY` | ms timestamp | Active auto-water expiry (0 = none) |
+| `STATS_*` | various | Lifetime stats (games played, high scores, care counts, coins, XP) |
+| `ACHIEVEMENTS_UNLOCKED` | JSON object | `{ badgeId: isoDateString }` |
+| `PEA_QUESTS` / `PEA_QUESTS_DATE` | JSON / ISO date | Today's quest list |
 
-- Add **Pea Coins** as a soft currency (earned via games, spent on cosmetics).  
-- Simple **shop** for pots, hats or backgrounds.  
-- More mini–games (memory, pattern taps, etc.).  
-- Daily login streak rewards.  
-- Cloud save / sync.
+---
+
+## 👩‍💻 Developer
+
+<div align="center">
+
+**Begüm Emir**
+
+[![GitHub](https://img.shields.io/badge/GitHub-BegumEmir-181717?style=flat-square&logo=github)](https://github.com/BegumEmir)
+
+*Built with 💚 using React Native & Expo*
+
+</div>
+
+---
+
+<div align="center">
+  <sub>Made with love for Pea 🌿</sub>
+</div>
